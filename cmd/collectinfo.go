@@ -16,44 +16,38 @@ limitations under the License.
 package cmd
 
 import (
-	"akoctl/pkg"
-	"fmt"
-	"k8s.io/client-go/util/homedir"
-	"path/filepath"
-
 	"github.com/spf13/cobra"
+
+	"akoctl/pkg"
 )
 
 var (
-	kubeconfig  *string
+	kubeconfig  string
 	namespaces  []string
-	pathToStore *string
+	pathToStore string
 )
 
 // collectinfoCmd represents the collectinfo command
 var collectinfoCmd = &cobra.Command{
 	Use:   "collectinfo",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+	Short: "collectinfo command collects all the required info from kubernetes cluster",
+	Long: `This command collects the following data from the given namespaces (all namespaces if none provided):
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
-	Run: func(cmd *cobra.Command, args []string) {
-		pkg.CollectInfo(namespaces, kubeconfig, pathToStore)
+* Pods, STS, PVC, AerospikeCluster objects .
+* Container logs.
+* Event logs.`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return pkg.CollectInfoUtil(namespaces, pathToStore)
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(collectinfoCmd)
 
-	collectinfoCmd.Flags().StringSliceVar(&namespaces, "namespaces", namespaces, fmt.Sprintf("Namespaces for which logs to be collected"))
-	if home := homedir.HomeDir(); home != "" {
-		kubeconfig = collectinfoCmd.Flags().String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
-	} else {
-		kubeconfig = collectinfoCmd.Flags().String("kubeconfig", "", "absolute path to the kubeconfig file")
-	}
-
-	pathToStore = collectinfoCmd.Flags().String("pathtostore", "", "absolute path where generated tar file will be saved")
+	collectinfoCmd.Flags().StringSliceVar(&namespaces, "namespaces", namespaces,
+		"Namespaces for which logs to be collected")
+	collectinfoCmd.Flags().StringVar(&kubeconfig, "kubeconfig", "",
+		"absolute path to the kubeconfig file")
+	collectinfoCmd.Flags().StringVar(&pathToStore, "pathtostore", "",
+		"absolute path where generated tar file will be saved")
 }

@@ -6,10 +6,10 @@ This is a command line tool for Aerospike kubernetes operator.
 
 ### Overview
 
-collectinfo command collects all the required logs of kubernetes cluster, which are available at the time of command being executed.
+collectinfo command collects all the required info from kubernetes cluster, which are available at the time of command being executed.
 
 
-### What logs does it collect?
+### What info does it collect?
 
 This command collects the following data from the given namespaces (all namespaces if none provided):
 
@@ -23,5 +23,4 @@ Some cluster-wide data points:
 
 ### How does result looks like?
 
-* This will create a tar file containes a directory with name "scraperlogs".
-* Inside that all cluster wide information will be available.
+* This will create a tar file with timestamp called "scraperlogs-<time-stamp>" which contains all the collected info from the cluster.
