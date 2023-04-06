@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -31,7 +32,8 @@ const (
 )
 
 var (
-	CurrentTime   = time.Now().Format("01-02-2006")
+	CurrentTime = time.Now().Format("01-02-2006")
+	// Key of this map should be the Kind of the object
 	objKindDirMap = map[string]string{
 		"Pod":                   "",
 		"Event":                 "",
@@ -60,25 +62,25 @@ func CollectInfoUtil(namespaces []string, pathToStore string) error {
 
 func CollectInfo(k8sClient client.Client, clientSet *kubernetes.Clientset, namespaces []string,
 	pathToStore string) error {
-	if err := os.MkdirAll(RootOutputDir, os.ModePerm); err != nil {
+	rootOutputPath := filepath.Join(pathToStore, RootOutputDir)
+	if err := os.MkdirAll(rootOutputPath, os.ModePerm); err != nil {
 		return err
 	}
 
 	// open log file
-	logFile, fileErr := os.OpenFile(filepath.Join(pathToStore, RootOutputDir, fileName),
+	logFile, fileErr := os.OpenFile(filepath.Join(rootOutputPath, fileName),
 		os.O_APPEND|os.O_RDWR|os.O_CREATE, 0644) //nolint:gocritic // file permission
 	if fileErr != nil {
 		return fileErr
 	}
-	defer logFile.Close()
 
 	logrus.SetOutput(logFile)
 
-	if err := createDirStructure(pathToStore); err != nil {
+	if err := createDirStructure(rootOutputPath); err != nil {
 		return err
 	}
 
-	logrus.Info("Directory structure created at ", pathToStore+"/"+RootOutputDir)
+	logrus.Info("Directory structure created at ", rootOutputPath)
 
 	nsList := namespaces
 	if len(nsList) == 0 {
@@ -124,6 +126,8 @@ func CollectInfo(k8sClient client.Client, clientSet *kubernetes.Clientset, names
 	if err := captureSCConfig(k8sClient); err != nil {
 		return err
 	}
+
+	logrus.Info("Compressing and deleting all logs and created ", RootOutputDir+CurrentTime+".tar.gzip")
 
 	return makeTarAndClean(pathToStore)
 }
@@ -216,9 +220,10 @@ func captureObject(k8sClient client.Client, gvk schema.GroupVersionKind, ns stri
 func makeTarAndClean(pathToStore string) error {
 	var buf bytes.Buffer
 
-	if err := compress(RootOutputDir, &buf); err != nil {
+	if err := compress(pathToStore, &buf); err != nil {
 		return err
 	}
+
 	// write the .tar.gzip
 	fileToWrite, err := os.OpenFile(filepath.Join(pathToStore, RootOutputDir+"-"+CurrentTime+".tar.gzip"),
 		os.O_CREATE|os.O_RDWR, 0650) //nolint:gocritic // file permission
@@ -230,11 +235,9 @@ func makeTarAndClean(pathToStore string) error {
 		return err
 	}
 
-	if err := os.RemoveAll(RootOutputDir); err != nil {
+	if err := os.RemoveAll(filepath.Join(pathToStore, RootOutputDir)); err != nil {
 		return err
 	}
-
-	logrus.Info("Compressed and deleted all logs and created ", RootOutputDir+CurrentTime+".tar.gzip")
 
 	return nil
 }
@@ -330,9 +333,7 @@ func captureContainerLogs(clientSet *kubernetes.Clientset, podName, containerNam
 	return populateScraperDir(buf.Bytes(), fileName)
 }
 
-func createDirStructure(pathToStore string) error {
-	rootOutputPath := filepath.Join(pathToStore, RootOutputDir)
-
+func createDirStructure(rootOutputPath string) error {
 	for obj := range objKindDirMap {
 		if obj == "Pod" {
 			objKindDirMap[obj] = filepath.Join(rootOutputPath, obj, "logs")
@@ -364,7 +365,8 @@ func compress(src string, buf io.Writer) error {
 	zr := gzip.NewWriter(buf)
 	tw := tar.NewWriter(zr)
 	// walk through every file in the folder
-	err := filepath.Walk(src, func(file string, fi os.FileInfo, err error) error {
+	rootOutputPath := filepath.Join(src, RootOutputDir)
+	err := filepath.Walk(rootOutputPath, func(file string, fi os.FileInfo, err error) error {
 		// generate tar header
 		header, fileErr := tar.FileInfoHeader(fi, file)
 		if fileErr != nil {
@@ -374,7 +376,7 @@ func compress(src string, buf io.Writer) error {
 		// must provide real name
 		// (see https://golang.org/src/archive/tar/common.go?#L626)
 
-		header.Name = filepath.ToSlash(file)
+		header.Name = strings.TrimPrefix(file, src)
 		// write header
 		if fileErr := tw.WriteHeader(header); fileErr != nil {
 			return fileErr

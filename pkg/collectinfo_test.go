@@ -1,7 +1,6 @@
 package pkg_test
 
 import (
-	"akoctl/pkg"
 	"archive/tar"
 	"compress/gzip"
 	"context"
@@ -19,6 +18,8 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"akoctl/pkg"
 )
 
 var (
@@ -151,7 +152,6 @@ func validateTar(srcFile string, filesList map[string]bool) error {
 
 	for {
 		header, err := tarReader.Next()
-
 		if err == io.EOF {
 			break
 		}
@@ -166,12 +166,10 @@ func validateTar(srcFile string, filesList map[string]bool) error {
 		case tar.TypeDir:
 			continue
 		case tar.TypeReg:
-			if !filesList[header.Name] {
-				filesList[header.Name] = true
-			}
+			filesList[name] = true
 		default:
 			fmt.Printf("%s : %c %s %s\n",
-				"Yikes! Unable to figure out type",
+				"Unable to figure out type",
 				header.Typeflag,
 				"in file",
 				name,

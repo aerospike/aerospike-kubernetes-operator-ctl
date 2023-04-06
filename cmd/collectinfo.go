@@ -33,7 +33,7 @@ var collectinfoCmd = &cobra.Command{
 	Short: "collectinfo command collects all the required info from kubernetes cluster",
 	Long: `This command collects the following data from the given namespaces (all namespaces if none provided):
 
-* Pods, STS, PVC, AerospikeCluster objects .
+* Pods, STS, PVC, AerospikeCluster, Nodes, StorageClasses objects .
 * Container logs.
 * Event logs.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -44,10 +44,10 @@ var collectinfoCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(collectinfoCmd)
 
+	collectinfoCmd.Flags().StringVar(&kubeconfig, "kubeconfig", "",
+		"Absolute path to the kubeconfig file")
 	collectinfoCmd.Flags().StringSliceVar(&namespaces, "namespaces", namespaces,
 		"Namespaces for which logs to be collected")
-	collectinfoCmd.Flags().StringVar(&kubeconfig, "kubeconfig", "",
-		"absolute path to the kubeconfig file")
 	collectinfoCmd.Flags().StringVar(&pathToStore, "pathtostore", "",
-		"absolute path where generated tar file will be saved")
+		"Absolute path where generated tar file will be saved")
 }

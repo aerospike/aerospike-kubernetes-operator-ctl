@@ -39,13 +39,10 @@ func TestPkg(t *testing.T) {
 
 var _ = BeforeSuite(
 	func() {
-		//		Expect(os.Setenv("KUBEBUILDER_ASSETS", "../bin/k8s/1.26.1-darwin-arm64")).To(Succeed())
 		logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
 
 		By("Bootstrapping test environment")
-		t := false
 		testEnv = &envtest.Environment{
-			UseExistingCluster:    &t,
 			CRDDirectoryPaths:     []string{filepath.Join("..", "config", "crd", "bases")},
 			ErrorIfCRDPathMissing: true,
 		}
@@ -82,7 +79,7 @@ var _ = BeforeSuite(
 
 var _ = AfterSuite(
 	func() {
-		By("tearing down the test environment")
+		By("Tearing down the test environment")
 		gexec.KillAndWait(5 * time.Second)
 		err := testEnv.Stop()
 		Expect(err).ToNot(HaveOccurred())
