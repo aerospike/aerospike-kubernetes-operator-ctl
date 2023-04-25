@@ -18,13 +18,13 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 
-	"akoctl/pkg"
+	"github.com/aerospike/aerospike-kubernetes-operator-ctl/pkg/collectinfo"
 )
 
 var (
-	kubeconfig  string
-	namespaces  []string
-	pathToStore string
+	kubeconfig string
+	namespaces []string
+	path       string
 )
 
 // collectinfoCmd represents the collectinfo command
@@ -36,8 +36,8 @@ var collectinfoCmd = &cobra.Command{
 * Pods, STS, PVC, AerospikeCluster, Nodes, StorageClasses objects .
 * Container logs.
 * Event logs.`,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		return pkg.CollectInfoUtil(namespaces, pathToStore)
+	Run: func(cmd *cobra.Command, args []string) {
+		collectinfo.CollectInfoUtil(namespaces, path)
 	},
 }
 
@@ -48,6 +48,6 @@ func init() {
 		"Absolute path to the kubeconfig file")
 	collectinfoCmd.Flags().StringSliceVar(&namespaces, "namespaces", namespaces,
 		"Namespaces for which logs to be collected")
-	collectinfoCmd.Flags().StringVar(&pathToStore, "pathtostore", "",
+	collectinfoCmd.Flags().StringVar(&path, "path", "",
 		"Absolute path where generated tar file will be saved")
 }

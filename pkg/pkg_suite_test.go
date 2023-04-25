@@ -11,9 +11,9 @@ import (
 	"github.com/onsi/gomega/gexec"
 	corev1 "k8s.io/api/core/v1"
 	apixv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
-	apixv1beta1client "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/typed/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -29,7 +29,6 @@ var (
 	k8sClient    client.Client
 	namespace    = "testns"
 	k8sClientset *kubernetes.Clientset
-	apixClient   *apixv1beta1client.ApiextensionsV1beta1Client
 )
 
 func TestPkg(t *testing.T) {
@@ -52,29 +51,28 @@ var _ = BeforeSuite(
 		Expect(err).NotTo(HaveOccurred())
 		Expect(cfg).NotTo(BeNil())
 
-		err = clientgoscheme.AddToScheme(clientgoscheme.Scheme)
+		scheme := runtime.NewScheme()
+
+		err = clientgoscheme.AddToScheme(scheme)
 		Expect(err).NotTo(HaveOccurred())
 
-		err = apixv1beta1.AddToScheme(clientgoscheme.Scheme)
+		err = apixv1beta1.AddToScheme(scheme)
 		Expect(err).NotTo(HaveOccurred())
 
 		// +kubebuilder:scaffold:scheme
 
 		k8sClient, err = client.New(
-			cfg, client.Options{Scheme: clientgoscheme.Scheme},
+			cfg, client.Options{Scheme: scheme},
 		)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(k8sClient).NotTo(BeNil())
-
-		apixClient, err = apixv1beta1client.NewForConfig(cfg)
-		Expect(err).NotTo(HaveOccurred())
-		Expect(apixClient).NotTo(BeNil())
 
 		k8sClientset = kubernetes.NewForConfigOrDie(cfg)
 		Expect(k8sClient).NotTo(BeNil())
 
 		ctx := goctx.TODO()
-		_ = createNamespace(k8sClient, ctx, namespace)
+		err = createNamespace(k8sClient, ctx, namespace)
+		Expect(err).NotTo(HaveOccurred())
 	})
 
 var _ = AfterSuite(

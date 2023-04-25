@@ -19,7 +19,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"akoctl/pkg"
+	"github.com/aerospike/aerospike-kubernetes-operator-ctl/pkg/collectinfo"
 )
 
 var (
@@ -32,18 +32,19 @@ var (
 	aerospikeClusterName = "test-aerocluster"
 )
 
-// key format: RootOutputDir/<objectKIND>/<objectName>
+// key format: RootOutputDir/<objectKIND>/<namespace-objectName>
 var filesList = map[string]bool{
-	pkg.RootOutputDir + "/Node/" + nodeName + ".yaml":                                                   false,
-	pkg.RootOutputDir + "/StorageClass/" + scName + ".yaml":                                             false,
-	pkg.RootOutputDir + "/PersistentVolumeClaim/" + namespace + "-" + pvcName + ".yaml":                 false,
-	pkg.RootOutputDir + "/StatefulSet/" + namespace + "-" + stsName + ".yaml":                           false,
-	pkg.RootOutputDir + "/Pod/logs/" + namespace + "-" + podName + "-" + containerName + "-current.log": false,
-	pkg.RootOutputDir + "/Pod/" + namespace + "-" + podName + ".yaml":                                   false,
-	pkg.RootOutputDir + "/AerospikeCluster/" + namespace + "-" + aerospikeClusterName + ".yaml":         false,
+	collectinfo.RootOutputDir + "/Node/" + nodeName + ".yaml":                                                   false,
+	collectinfo.RootOutputDir + "/StorageClass/" + scName + ".yaml":                                             false,
+	collectinfo.RootOutputDir + "/PersistentVolumeClaim/" + namespace + "-" + pvcName + ".yaml":                 false,
+	collectinfo.RootOutputDir + "/StatefulSet/" + namespace + "-" + stsName + ".yaml":                           false,
+	collectinfo.RootOutputDir + "/Pod/logs/" + namespace + "-" + podName + "-" + containerName + "-current.log": false,
+	collectinfo.RootOutputDir + "/Pod/" + namespace + "-" + podName + ".yaml":                                   false,
+	collectinfo.RootOutputDir + "/AerospikeCluster/" + namespace + "-" + aerospikeClusterName + ".yaml":         false,
+	collectinfo.RootOutputDir + "/logFile.log":                                                                  false,
 }
 
-var _ = Describe("CollectInfo", func() {
+var _ = Describe("collectInfo", func() {
 	Context("When doing valid operations", func() {
 
 		createOption := &client.CreateOptions{}
@@ -115,22 +116,18 @@ var _ = Describe("CollectInfo", func() {
 			}
 
 			u := &unstructured.Unstructured{}
-			u.Object = map[string]interface{}{
-				"metadata": map[string]interface{}{
-					"name":      aerospikeClusterName,
-					"namespace": namespace,
-				},
-			}
+			u.SetName(aerospikeClusterName)
+			u.SetNamespace(namespace)
 			u.SetGroupVersionKind(gvk)
 
 			err = k8sClient.Create(context.TODO(), u)
 			Expect(err).ToNot(HaveOccurred())
 
 			var nslist = []string{namespace}
-			err = pkg.CollectInfo(k8sClient, k8sClientset, nslist, "")
+			err = collectinfo.CollectInfo(k8sClient, k8sClientset, nslist, "")
 			Expect(err).ToNot(HaveOccurred())
 
-			err = validateTar(pkg.RootOutputDir+"-"+pkg.CurrentTime+".tar.gzip", filesList)
+			err = validateTar(collectinfo.RootOutputDir+"-"+collectinfo.CurrentTime+".tar.gzip", filesList)
 			Expect(err).ToNot(HaveOccurred())
 		})
 	})
@@ -157,7 +154,7 @@ func validateTar(srcFile string, filesList map[string]bool) error {
 		}
 
 		if err != nil {
-			panic(err.Error())
+			return err
 		}
 
 		name := header.Name
@@ -166,12 +163,16 @@ func validateTar(srcFile string, filesList map[string]bool) error {
 		case tar.TypeDir:
 			continue
 		case tar.TypeReg:
+			if _, ok := filesList[name]; ok {
+				filesList[name] = true
+			} else {
+				return fmt.Errorf("found unexpected file in tar %s", name)
+			}
+
 			filesList[name] = true
 		default:
-			fmt.Printf("%s : %c %s %s\n",
-				"Unable to figure out type",
+			return fmt.Errorf("unable to figure out type : %c in file %s",
 				header.Typeflag,
-				"in file",
 				name,
 			)
 		}
