@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -30,18 +31,20 @@ var (
 	podName              = "test-pod"
 	containerName        = "test-container"
 	aerospikeClusterName = "test-aerocluster"
+	clusterScopeDir      = collectinfo.RootOutputDir + "/k8s-cluster/"
+	namespaceScopeDir    = collectinfo.RootOutputDir + "/k8s-namespaces/"
 )
 
-// key format: RootOutputDir/<objectKIND>/<namespace-objectName>
+// key format: RootOutputDir/<k8s-cluster or k8s-namespaces>/ns/<objectKIND>/<objectName>
 var filesList = map[string]bool{
-	collectinfo.RootOutputDir + "/Node/" + nodeName + ".yaml":                                                   false,
-	collectinfo.RootOutputDir + "/StorageClass/" + scName + ".yaml":                                             false,
-	collectinfo.RootOutputDir + "/PersistentVolumeClaim/" + namespace + "-" + pvcName + ".yaml":                 false,
-	collectinfo.RootOutputDir + "/StatefulSet/" + namespace + "-" + stsName + ".yaml":                           false,
-	collectinfo.RootOutputDir + "/Pod/logs/" + namespace + "-" + podName + "-" + containerName + "-current.log": false,
-	collectinfo.RootOutputDir + "/Pod/" + namespace + "-" + podName + ".yaml":                                   false,
-	collectinfo.RootOutputDir + "/AerospikeCluster/" + namespace + "-" + aerospikeClusterName + ".yaml":         false,
-	collectinfo.RootOutputDir + "/logFile.log":                                                                  false,
+	clusterScopeDir + "Node/" + nodeName + ".yaml":                                                false,
+	clusterScopeDir + "StorageClass/" + scName + ".yaml":                                          false,
+	namespaceScopeDir + namespace + "/PersistentVolumeClaim/" + pvcName + ".yaml":                 false,
+	namespaceScopeDir + namespace + "/StatefulSet/" + stsName + ".yaml":                           false,
+	namespaceScopeDir + namespace + "/Pod/logs/" + podName + "-" + containerName + "-current.log": false,
+	namespaceScopeDir + namespace + "/Pod/" + podName + ".yaml":                                   false,
+	namespaceScopeDir + namespace + "/AerospikeCluster/" + aerospikeClusterName + ".yaml":         false,
+	collectinfo.RootOutputDir + "/logFile.log":                                                    false,
 }
 
 var _ = Describe("collectInfo", func() {
@@ -124,7 +127,13 @@ var _ = Describe("collectInfo", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			var nslist = []string{namespace}
-			err = collectinfo.CollectInfo(k8sClient, k8sClientset, nslist, "")
+
+			err = os.MkdirAll(collectinfo.RootOutputDir, os.ModePerm)
+			Expect(err).ToNot(HaveOccurred())
+
+			logger := collectinfo.InitializeLogger(filepath.Join(collectinfo.RootOutputDir, "logFile.log"))
+
+			err = collectinfo.CollectInfo(logger, k8sClient, k8sClientset, nslist, "", false, true)
 			Expect(err).ToNot(HaveOccurred())
 
 			err = validateTar(collectinfo.RootOutputDir+"-"+collectinfo.CurrentTime+".tar.gzip", filesList)

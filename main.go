@@ -15,7 +15,7 @@ limitations under the License.
 
 package main
 
-import "akoctl/cmd"
+import "github.com/aerospike/aerospike-kubernetes-operator-ctl/cmd"
 
 func main() {
 	cmd.Execute()

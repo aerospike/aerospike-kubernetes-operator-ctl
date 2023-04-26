@@ -11,7 +11,7 @@ collectinfo command collects all the required info from kubernetes cluster, whic
 
 ### What info does it collect?
 
-This command collects the following data from the given namespaces (all namespaces if none provided):
+This command collects the following data from the given namespaces:
 
 * Pods, STS, PVC, AerospikeCluster objects .
 * Container logs.
