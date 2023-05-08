@@ -23,7 +23,7 @@ import (
 	"github.com/aerospike/aerospike-kubernetes-operator-ctl/pkg/collectinfo"
 )
 
-var (
+const (
 	nodeName             = "test-node"
 	scName               = "test-sc"
 	pvcName              = "test-pvc"
@@ -31,28 +31,31 @@ var (
 	podName              = "test-pod"
 	containerName        = "test-container"
 	aerospikeClusterName = "test-aerocluster"
-	clusterScopeDir      = filepath.Join(collectinfo.RootOutputDir, "k8s-cluster")
-	namespaceScopeDir    = filepath.Join(collectinfo.RootOutputDir, "k8s-namespaces")
+)
+
+var (
+	clusterScopeDir   = filepath.Join(collectinfo.RootOutputDir, "k8s-cluster")
+	namespaceScopeDir = filepath.Join(collectinfo.RootOutputDir, "k8s-namespaces")
 )
 
 // key format: RootOutputDir/<k8s-cluster or k8s-namespaces>/ns/<objectKIND>/<objectName>
 var filesList = map[string]bool{
 	filepath.Join(clusterScopeDir, collectinfo.NodeKind,
-		nodeName+".yaml"): false,
+		nodeName+collectinfo.FilePrefix): false,
 	filepath.Join(clusterScopeDir, collectinfo.SCKind,
-		scName+".yaml"): false,
+		scName+collectinfo.FilePrefix): false,
 	filepath.Join(namespaceScopeDir, namespace, collectinfo.PVCKind,
-		pvcName+".yaml"): false,
+		pvcName+collectinfo.FilePrefix): false,
 	filepath.Join(namespaceScopeDir, namespace, collectinfo.STSKind,
-		stsName+".yaml"): false,
+		stsName+collectinfo.FilePrefix): false,
 	filepath.Join(namespaceScopeDir, namespace, collectinfo.PodKind, "logs",
 		podName+"-"+containerName+"-current.log"): false,
 	filepath.Join(namespaceScopeDir, namespace, collectinfo.PodKind,
-		podName+".yaml"): false,
+		podName+collectinfo.FilePrefix): false,
 	filepath.Join(namespaceScopeDir, namespace, collectinfo.AerospikeClusterKind,
-		aerospikeClusterName+".yaml"): false,
+		aerospikeClusterName+collectinfo.FilePrefix): false,
 	filepath.Join(collectinfo.RootOutputDir,
-		"logFile.log"): false,
+		collectinfo.FileName): false,
 }
 
 var _ = Describe("collectInfo", func() {
@@ -62,14 +65,12 @@ var _ = Describe("collectInfo", func() {
 
 		It("Should create a tar file with all logs", func() {
 			node := &corev1.Node{
-				TypeMeta:   metav1.TypeMeta{Kind: "Node"},
 				ObjectMeta: metav1.ObjectMeta{Name: nodeName},
 			}
 			err := k8sClient.Create(context.TODO(), node, createOption)
 			Expect(err).ToNot(HaveOccurred())
 
 			sc := &v1.StorageClass{
-				TypeMeta:    metav1.TypeMeta{Kind: "StorageClass"},
 				ObjectMeta:  metav1.ObjectMeta{Name: scName},
 				Provisioner: "provisionerPluginName",
 			}

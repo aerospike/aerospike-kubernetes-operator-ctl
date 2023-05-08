@@ -29,7 +29,8 @@ import (
 
 const (
 	RootOutputDir = "scraperlogs"
-	fileName      = "logFile.log"
+	FileName      = "logFile.log"
+	FilePrefix    = ".yaml"
 )
 
 var (
@@ -43,7 +44,7 @@ func Util(namespaces []string, path string, allNamespaces, clusterScope bool) er
 		return err
 	}
 
-	logger := InitializeLogger(filepath.Join(rootOutputPath, fileName))
+	logger := InitializeLogger(filepath.Join(rootOutputPath, FileName))
 
 	if len(namespaces) == 0 && !allNamespaces {
 		logger.Error("either namespaces or all-namespaces argument must be provided")
@@ -180,7 +181,7 @@ func captureObject(logger *zap.Logger, k8sClient client.Client, gvk schema.Group
 		}
 
 		fileName := filepath.Join(objOutputDir,
-			u.Items[idx].GetName()+".yaml")
+			u.Items[idx].GetName()+FilePrefix)
 
 		if err := populateScraperDir(clusterData, fileName); err != nil {
 			return err
@@ -232,7 +233,7 @@ func capturePodLogs(logger *zap.Logger, clientSet *kubernetes.Clientset, ns, roo
 			return err
 		}
 
-		fileName := filepath.Join(podLogsDir, "..", pods.Items[podIndex].Name+".yaml")
+		fileName := filepath.Join(podLogsDir, "..", pods.Items[podIndex].Name+FilePrefix)
 
 		if err := populateScraperDir(podData, fileName); err != nil {
 			return err
