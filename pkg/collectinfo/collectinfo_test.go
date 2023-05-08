@@ -41,21 +41,23 @@ var (
 // key format: RootOutputDir/<k8s-cluster or k8s-namespaces>/ns/<objectKIND>/<objectName>
 var filesList = map[string]bool{
 	filepath.Join(clusterScopeDir, collectinfo.NodeKind,
-		nodeName+collectinfo.FilePrefix): false,
+		nodeName+collectinfo.FileSuffix): false,
 	filepath.Join(clusterScopeDir, collectinfo.SCKind,
-		scName+collectinfo.FilePrefix): false,
+		scName+collectinfo.FileSuffix): false,
 	filepath.Join(namespaceScopeDir, namespace, collectinfo.PVCKind,
-		pvcName+collectinfo.FilePrefix): false,
+		pvcName+collectinfo.FileSuffix): false,
 	filepath.Join(namespaceScopeDir, namespace, collectinfo.STSKind,
-		stsName+collectinfo.FilePrefix): false,
-	filepath.Join(namespaceScopeDir, namespace, collectinfo.PodKind, "logs",
-		podName+"-"+containerName+"-current.log"): false,
-	filepath.Join(namespaceScopeDir, namespace, collectinfo.PodKind,
-		podName+collectinfo.FilePrefix): false,
+		stsName+collectinfo.FileSuffix): false,
+	filepath.Join(namespaceScopeDir, namespace, collectinfo.PodKind, podName, "logs",
+		containerName+".log"): false,
+	filepath.Join(namespaceScopeDir, namespace, collectinfo.PodKind, podName, "logs", "previous",
+		containerName+".log"): false,
+	filepath.Join(namespaceScopeDir, namespace, collectinfo.PodKind, podName,
+		podName+collectinfo.FileSuffix): false,
 	filepath.Join(namespaceScopeDir, namespace, collectinfo.AerospikeClusterKind,
-		aerospikeClusterName+collectinfo.FilePrefix): false,
+		aerospikeClusterName+collectinfo.FileSuffix): false,
 	filepath.Join(collectinfo.RootOutputDir,
-		collectinfo.FileName): false,
+		collectinfo.LogFileName): false,
 }
 
 var _ = Describe("collectInfo", func() {

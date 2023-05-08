@@ -29,8 +29,8 @@ import (
 
 const (
 	RootOutputDir = "scraperlogs"
-	FileName      = "logFile.log"
-	FilePrefix    = ".yaml"
+	LogFileName   = "logFile.log"
+	FileSuffix    = ".yaml"
 )
 
 var (
@@ -44,7 +44,7 @@ func Util(namespaces []string, path string, allNamespaces, clusterScope bool) er
 		return err
 	}
 
-	logger := InitializeLogger(filepath.Join(rootOutputPath, FileName))
+	logger := InitializeLogger(filepath.Join(rootOutputPath, LogFileName))
 
 	if len(namespaces) == 0 && !allNamespaces {
 		logger.Error("either namespaces or all-namespaces argument must be provided")
@@ -181,7 +181,7 @@ func captureObject(logger *zap.Logger, k8sClient client.Client, gvk schema.Group
 		}
 
 		fileName := filepath.Join(objOutputDir,
-			u.Items[idx].GetName()+FilePrefix)
+			u.Items[idx].GetName()+FileSuffix)
 
 		if err := populateScraperDir(clusterData, fileName); err != nil {
 			return err
@@ -222,18 +222,18 @@ func capturePodLogs(logger *zap.Logger, clientSet *kubernetes.Clientset, ns, roo
 		return nil
 	}
 
-	podLogsDir := filepath.Join(rootOutputPath, PodKind, "logs")
-	if err := os.MkdirAll(podLogsDir, os.ModePerm); err != nil {
-		return err
-	}
-
 	for podIndex := range pods.Items {
 		podData, err := yaml.Marshal(pods.Items[podIndex])
 		if err != nil {
 			return err
 		}
 
-		fileName := filepath.Join(podLogsDir, "..", pods.Items[podIndex].Name+FilePrefix)
+		podLogsDir := filepath.Join(rootOutputPath, PodKind, pods.Items[podIndex].Name, "logs")
+		if err := os.MkdirAll(podLogsDir, os.ModePerm); err != nil {
+			return err
+		}
+
+		fileName := filepath.Join(podLogsDir, "..", pods.Items[podIndex].Name+FileSuffix)
 
 		if err := populateScraperDir(podData, fileName); err != nil {
 			return err
@@ -241,14 +241,16 @@ func capturePodLogs(logger *zap.Logger, clientSet *kubernetes.Clientset, ns, roo
 
 		for containerIndex := range pods.Items[podIndex].Spec.Containers {
 			containerName := pods.Items[podIndex].Spec.Containers[containerIndex].Name
-			if err := captureContainerLogs(clientSet, pods.Items[podIndex].Name, containerName, ns, podLogsDir); err != nil {
+			if err := captureContainerLogs(logger, clientSet, pods.Items[podIndex].Name,
+				containerName, ns, podLogsDir); err != nil {
 				return err
 			}
 		}
 
 		for initContainerIndex := range pods.Items[podIndex].Spec.InitContainers {
 			initContainerName := pods.Items[podIndex].Spec.InitContainers[initContainerIndex].Name
-			if err := captureContainerLogs(clientSet, pods.Items[podIndex].Name, initContainerName, ns, podLogsDir); err != nil {
+			if err := captureContainerLogs(logger, clientSet, pods.Items[podIndex].Name,
+				initContainerName, ns, podLogsDir); err != nil {
 				return err
 			}
 		}
@@ -260,13 +262,14 @@ func capturePodLogs(logger *zap.Logger, clientSet *kubernetes.Clientset, ns, roo
 	return nil
 }
 
-func captureContainerLogs(clientSet *kubernetes.Clientset, podName, containerName, ns, podLogsDir string) error {
+func captureContainerLogs(logger *zap.Logger, clientSet *kubernetes.Clientset, podName,
+	containerName, ns, podLogsDir string) error {
 	podLogOpts := corev1.PodLogOptions{Container: containerName}
 	req := clientSet.CoreV1().Pods(ns).GetLogs(podName, &podLogOpts)
 
-	podLogs, err := req.Stream(context.TODO())
-	if err != nil {
-		return err
+	podLogs, reqErr := req.Stream(context.TODO())
+	if reqErr != nil {
+		return reqErr
 	}
 
 	buf := new(bytes.Buffer)
@@ -278,7 +281,39 @@ func captureContainerLogs(clientSet *kubernetes.Clientset, podName, containerNam
 		return err
 	}
 
-	fileName := filepath.Join(podLogsDir, podName+"-"+containerName+"-current.log")
+	fileName := filepath.Join(podLogsDir, containerName+".log")
+
+	if err := populateScraperDir(buf.Bytes(), fileName); err != nil {
+		return err
+	}
+
+	podLogOpts = corev1.PodLogOptions{
+		Container: containerName,
+		Previous:  true,
+	}
+	req = clientSet.CoreV1().Pods(ns).GetLogs(podName, &podLogOpts)
+
+	podLogs, err := req.Stream(context.TODO())
+	if err != nil {
+		logger.Error("Container's previous logs not found ", zap.String("container", containerName), zap.Error(err))
+		return nil
+	}
+
+	buf = new(bytes.Buffer)
+	if _, err := io.Copy(buf, podLogs); err != nil {
+		return err
+	}
+
+	if err := podLogs.Close(); err != nil {
+		return err
+	}
+
+	prevLogsDir := filepath.Join(podLogsDir, "previous")
+	if err := os.MkdirAll(prevLogsDir, os.ModePerm); err != nil {
+		return err
+	}
+
+	fileName = filepath.Join(prevLogsDir, containerName+".log")
 
 	return populateScraperDir(buf.Bytes(), fileName)
 }
