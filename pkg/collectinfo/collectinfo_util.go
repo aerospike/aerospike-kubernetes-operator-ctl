@@ -14,7 +14,6 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/yaml.v2"
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -23,6 +22,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	"k8s.io/kube-openapi/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 )
@@ -33,26 +33,8 @@ const (
 )
 
 var (
-	CurrentTime     = time.Now().Format("01-02-2006")
-	tarName         = RootOutputDir + "-" + CurrentTime + ".tar.gzip"
-	gvkListNSScoped = []schema.GroupVersionKind{
-		corev1.SchemeGroupVersion.WithKind("PersistentVolumeClaim"),
-		appsv1.SchemeGroupVersion.WithKind("StatefulSet"),
-		corev1.SchemeGroupVersion.WithKind("Event"),
-		{
-			Group:   "asdb.aerospike.com",
-			Version: "v1beta1",
-			Kind:    "AerospikeCluster",
-		},
-	}
-	gvkListClusterScoped = []schema.GroupVersionKind{
-		corev1.SchemeGroupVersion.WithKind("Node"),
-		{
-			Group:   "storage.k8s.io",
-			Version: "v1",
-			Kind:    "StorageClass",
-		},
-	}
+	currentTime = time.Now().Format("01-02-2006")
+	TarName     = RootOutputDir + "-" + currentTime + ".tar.gzip"
 )
 
 func Util(namespaces []string, path string, allNamespaces, clusterScope bool) error {
@@ -100,7 +82,8 @@ func InitializeLogger(logFilePath string) *zap.Logger {
 func CollectInfo(logger *zap.Logger, k8sClient client.Client, clientSet *kubernetes.Clientset, namespaces []string,
 	path string, allNamespaces, clusterScope bool) error {
 	rootOutputPath := filepath.Join(path, RootOutputDir)
-	nsList := namespaces
+	nsList := sets.String{}
+	nsList.Insert(namespaces...)
 
 	if allNamespaces {
 		logger.Info("Capturing for all namespaces")
@@ -111,11 +94,11 @@ func CollectInfo(logger *zap.Logger, k8sClient client.Client, clientSet *kuberne
 		}
 
 		for idx := range namespaceObjs.Items {
-			nsList = append(nsList, namespaceObjs.Items[idx].Name)
+			nsList.Insert(namespaceObjs.Items[idx].Name)
 		}
 	}
 
-	for _, ns := range nsList {
+	for ns := range nsList {
 		objOutputDir := filepath.Join(rootOutputPath, "k8s-namespaces", ns)
 		if err := os.MkdirAll(objOutputDir, os.ModePerm); err != nil {
 			return err
@@ -147,7 +130,7 @@ func CollectInfo(logger *zap.Logger, k8sClient client.Client, clientSet *kuberne
 		}
 	}
 
-	logger.Info("Compressing and deleting all logs and created ", zap.String("tar file", tarName))
+	logger.Info("Compressing and deleting all logs and created ", zap.String("tar file", TarName))
 
 	return makeTarAndClean(path)
 }
@@ -218,7 +201,7 @@ func makeTarAndClean(pathToStore string) error {
 	}
 
 	// write the .tar.gzip
-	fileToWrite, err := os.OpenFile(filepath.Join(pathToStore, tarName),
+	fileToWrite, err := os.OpenFile(filepath.Join(pathToStore, TarName),
 		os.O_CREATE|os.O_RDWR, 0650) //nolint:gocritic // file permission
 	if err != nil {
 		return err
@@ -234,11 +217,11 @@ func makeTarAndClean(pathToStore string) error {
 func capturePodLogs(logger *zap.Logger, clientSet *kubernetes.Clientset, ns, rootOutputPath string) error {
 	pods, err := clientSet.CoreV1().Pods(ns).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
-		logger.Error("Not able to list ", zap.String("object", "Pod"), zap.Error(err))
+		logger.Error("Not able to list ", zap.String("object", PodKind), zap.Error(err))
 		return nil
 	}
 
-	podLogsDir := filepath.Join(rootOutputPath, "Pod", "logs")
+	podLogsDir := filepath.Join(rootOutputPath, PodKind, "logs")
 	if err := os.MkdirAll(podLogsDir, os.ModePerm); err != nil {
 		return err
 	}
@@ -270,7 +253,7 @@ func capturePodLogs(logger *zap.Logger, clientSet *kubernetes.Clientset, ns, roo
 		}
 	}
 
-	logger.Info("Successfully saved ", zap.String("object", "Pod"),
+	logger.Info("Successfully saved ", zap.String("object", PodKind),
 		zap.Int("no of objects", len(pods.Items)), zap.String("namespace", ns))
 
 	return nil

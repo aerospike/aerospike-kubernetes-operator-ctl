@@ -1,4 +1,4 @@
-package pkg_test
+package collectinfo_test
 
 import (
 	"archive/tar"
@@ -31,20 +31,28 @@ var (
 	podName              = "test-pod"
 	containerName        = "test-container"
 	aerospikeClusterName = "test-aerocluster"
-	clusterScopeDir      = collectinfo.RootOutputDir + "/k8s-cluster/"
-	namespaceScopeDir    = collectinfo.RootOutputDir + "/k8s-namespaces/"
+	clusterScopeDir      = filepath.Join(collectinfo.RootOutputDir, "k8s-cluster")
+	namespaceScopeDir    = filepath.Join(collectinfo.RootOutputDir, "k8s-namespaces")
 )
 
 // key format: RootOutputDir/<k8s-cluster or k8s-namespaces>/ns/<objectKIND>/<objectName>
 var filesList = map[string]bool{
-	clusterScopeDir + "Node/" + nodeName + ".yaml":                                                false,
-	clusterScopeDir + "StorageClass/" + scName + ".yaml":                                          false,
-	namespaceScopeDir + namespace + "/PersistentVolumeClaim/" + pvcName + ".yaml":                 false,
-	namespaceScopeDir + namespace + "/StatefulSet/" + stsName + ".yaml":                           false,
-	namespaceScopeDir + namespace + "/Pod/logs/" + podName + "-" + containerName + "-current.log": false,
-	namespaceScopeDir + namespace + "/Pod/" + podName + ".yaml":                                   false,
-	namespaceScopeDir + namespace + "/AerospikeCluster/" + aerospikeClusterName + ".yaml":         false,
-	collectinfo.RootOutputDir + "/logFile.log":                                                    false,
+	filepath.Join(clusterScopeDir, collectinfo.NodeKind,
+		nodeName+".yaml"): false,
+	filepath.Join(clusterScopeDir, collectinfo.SCKind,
+		scName+".yaml"): false,
+	filepath.Join(namespaceScopeDir, namespace, collectinfo.PVCKind,
+		pvcName+".yaml"): false,
+	filepath.Join(namespaceScopeDir, namespace, collectinfo.STSKind,
+		stsName+".yaml"): false,
+	filepath.Join(namespaceScopeDir, namespace, collectinfo.PodKind, "logs",
+		podName+"-"+containerName+"-current.log"): false,
+	filepath.Join(namespaceScopeDir, namespace, collectinfo.PodKind,
+		podName+".yaml"): false,
+	filepath.Join(namespaceScopeDir, namespace, collectinfo.AerospikeClusterKind,
+		aerospikeClusterName+".yaml"): false,
+	filepath.Join(collectinfo.RootOutputDir,
+		"logFile.log"): false,
 }
 
 var _ = Describe("collectInfo", func() {
@@ -136,7 +144,7 @@ var _ = Describe("collectInfo", func() {
 			err = collectinfo.CollectInfo(logger, k8sClient, k8sClientset, nslist, "", false, true)
 			Expect(err).ToNot(HaveOccurred())
 
-			err = validateTar(collectinfo.RootOutputDir+"-"+collectinfo.CurrentTime+".tar.gzip", filesList)
+			err = validateTar(collectinfo.TarName, filesList)
 			Expect(err).ToNot(HaveOccurred())
 		})
 	})
@@ -177,8 +185,6 @@ func validateTar(srcFile string, filesList map[string]bool) error {
 			} else {
 				return fmt.Errorf("found unexpected file in tar %s", name)
 			}
-
-			filesList[name] = true
 		default:
 			return fmt.Errorf("unable to figure out type : %c in file %s",
 				header.Typeflag,

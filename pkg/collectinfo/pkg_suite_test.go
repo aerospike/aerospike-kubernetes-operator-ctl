@@ -1,4 +1,4 @@
-package pkg_test
+package collectinfo_test
 
 import (
 	goctx "context"
