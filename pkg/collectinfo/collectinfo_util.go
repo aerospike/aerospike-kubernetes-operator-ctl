@@ -28,26 +28,26 @@ import (
 )
 
 const (
-	RootOutputDir = "scraperlogs"
-	LogFileName   = "logFile.log"
+	RootOutputDir = "akoctl_collectinfo"
+	LogFileName   = "akoctl.log"
 	FileSuffix    = ".yaml"
 )
 
 var (
-	currentTime = time.Now().Format("01-02-2006")
-	TarName     = RootOutputDir + "-" + currentTime + ".tar.gzip"
+	currentTime = time.Now().Format("20060102_150405")
+	TarName     = RootOutputDir + "_" + currentTime + ".tar.gzip"
 )
 
-func Util(namespaces []string, path string, allNamespaces, clusterScope bool) error {
+func RunCollectInfo(namespaces []string, path string, allNamespaces, clusterScope bool) error {
 	rootOutputPath := filepath.Join(path, RootOutputDir)
-	if err := os.MkdirAll(rootOutputPath, os.ModePerm); err != nil {
+	if err := os.Mkdir(rootOutputPath, os.ModePerm); err != nil {
 		return err
 	}
 
 	logger := InitializeLogger(filepath.Join(rootOutputPath, LogFileName))
 
 	if len(namespaces) == 0 && !allNamespaces {
-		logger.Error("either namespaces or all-namespaces argument must be provided")
+		logger.Error("Either `namespaces` or `all-namespaces` argument must be provided")
 		return nil
 	}
 
@@ -241,16 +241,26 @@ func capturePodLogs(logger *zap.Logger, clientSet *kubernetes.Clientset, ns, roo
 
 		for containerIndex := range pods.Items[podIndex].Spec.Containers {
 			containerName := pods.Items[podIndex].Spec.Containers[containerIndex].Name
-			if err := captureContainerLogs(logger, clientSet, pods.Items[podIndex].Name,
-				containerName, ns, podLogsDir); err != nil {
+			if err := captureContainerLogs(logger, clientSet, pods.Items[podIndex].Name, containerName, ns,
+				podLogsDir, false); err != nil {
+				return err
+			}
+
+			if err := captureContainerLogs(logger, clientSet, pods.Items[podIndex].Name, containerName, ns,
+				podLogsDir, true); err != nil {
 				return err
 			}
 		}
 
 		for initContainerIndex := range pods.Items[podIndex].Spec.InitContainers {
 			initContainerName := pods.Items[podIndex].Spec.InitContainers[initContainerIndex].Name
-			if err := captureContainerLogs(logger, clientSet, pods.Items[podIndex].Name,
-				initContainerName, ns, podLogsDir); err != nil {
+			if err := captureContainerLogs(logger, clientSet, pods.Items[podIndex].Name, initContainerName, ns,
+				podLogsDir, false); err != nil {
+				return err
+			}
+
+			if err := captureContainerLogs(logger, clientSet, pods.Items[podIndex].Name, initContainerName, ns,
+				podLogsDir, true); err != nil {
 				return err
 			}
 		}
@@ -262,14 +272,19 @@ func capturePodLogs(logger *zap.Logger, clientSet *kubernetes.Clientset, ns, roo
 	return nil
 }
 
-func captureContainerLogs(logger *zap.Logger, clientSet *kubernetes.Clientset, podName,
-	containerName, ns, podLogsDir string) error {
-	podLogOpts := corev1.PodLogOptions{Container: containerName}
+func captureContainerLogs(logger *zap.Logger, clientSet *kubernetes.Clientset, podName, containerName, ns,
+	podLogsDir string, previous bool) error {
+	podLogOpts := corev1.PodLogOptions{
+		Container: containerName,
+		Previous:  previous,
+	}
 	req := clientSet.CoreV1().Pods(ns).GetLogs(podName, &podLogOpts)
 
 	podLogs, reqErr := req.Stream(context.TODO())
 	if reqErr != nil {
-		return reqErr
+		logger.Error("Container's logs not found ", zap.String("container", containerName),
+			zap.Bool("previous", previous), zap.Error(reqErr))
+		return nil
 	}
 
 	buf := new(bytes.Buffer)
@@ -281,39 +296,14 @@ func captureContainerLogs(logger *zap.Logger, clientSet *kubernetes.Clientset, p
 		return err
 	}
 
+	if previous {
+		podLogsDir = filepath.Join(podLogsDir, "previous")
+		if err := os.MkdirAll(podLogsDir, os.ModePerm); err != nil {
+			return err
+		}
+	}
+
 	fileName := filepath.Join(podLogsDir, containerName+".log")
-
-	if err := populateScraperDir(buf.Bytes(), fileName); err != nil {
-		return err
-	}
-
-	podLogOpts = corev1.PodLogOptions{
-		Container: containerName,
-		Previous:  true,
-	}
-	req = clientSet.CoreV1().Pods(ns).GetLogs(podName, &podLogOpts)
-
-	podLogs, err := req.Stream(context.TODO())
-	if err != nil {
-		logger.Error("Container's previous logs not found ", zap.String("container", containerName), zap.Error(err))
-		return nil
-	}
-
-	buf = new(bytes.Buffer)
-	if _, err := io.Copy(buf, podLogs); err != nil {
-		return err
-	}
-
-	if err := podLogs.Close(); err != nil {
-		return err
-	}
-
-	prevLogsDir := filepath.Join(podLogsDir, "previous")
-	if err := os.MkdirAll(prevLogsDir, os.ModePerm); err != nil {
-		return err
-	}
-
-	fileName = filepath.Join(prevLogsDir, containerName+".log")
 
 	return populateScraperDir(buf.Bytes(), fileName)
 }

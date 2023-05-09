@@ -34,11 +34,11 @@ var collectinfoCmd = &cobra.Command{
 	Use:   "collectinfo",
 	Short: "collectinfo command collects all the required info from kubernetes cluster",
 	Long: `This command collects the following data from the given namespaces:
-* Pods, STS, PVC, AerospikeCluster, Nodes, StorageClasses objects .
-* Container logs.
-* Event logs.`,
+* pods, statefulsets, persistentvolumeclaims, aerospikeclusters, nodes, storageclasses objects .
+* containers logs.
+* events logs.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return collectinfo.Util(namespaces, path, allNamespaces, clusterScope)
+		return collectinfo.RunCollectInfo(namespaces, path, allNamespaces, clusterScope)
 	},
 }
 
@@ -47,11 +47,11 @@ func init() {
 
 	collectinfoCmd.Flags().StringVar(&kubeconfig, "kubeconfig", "",
 		"Absolute path to the kubeconfig file")
-	collectinfoCmd.Flags().StringSliceVar(&namespaces, "namespaces", namespaces,
+	collectinfoCmd.Flags().StringSliceVarP(&namespaces, "namespaces", "n", namespaces,
 		"Namespaces for which logs to be collected")
 	collectinfoCmd.Flags().StringVar(&path, "path", "",
 		"Absolute path where generated tar file will be saved")
-	collectinfoCmd.Flags().BoolVar(&allNamespaces, "all-namespaces", false,
+	collectinfoCmd.Flags().BoolVarP(&allNamespaces, "all-namespaces", "A", false,
 		"Collect info from all namespaces")
 	collectinfoCmd.Flags().BoolVar(&clusterScope, "cluster-scope", true,
 		"Permission to collect cluster scoped objects info")
