@@ -11,7 +11,6 @@ const (
 	NodeKind             = "Node"
 	PVCKind              = "PersistentVolumeClaim"
 	STSKind              = "StatefulSet"
-	EventKind            = "Event"
 	SCKind               = "StorageClass"
 	AerospikeClusterKind = "AerospikeCluster"
 	PodKind              = "Pod"
@@ -21,7 +20,6 @@ var (
 	gvkListNSScoped = []schema.GroupVersionKind{
 		corev1.SchemeGroupVersion.WithKind(PVCKind),
 		appsv1.SchemeGroupVersion.WithKind(STSKind),
-		corev1.SchemeGroupVersion.WithKind(EventKind),
 		{
 			Group:   "asdb.aerospike.com",
 			Version: "v1beta1",

@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -19,6 +20,8 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/duration"
+	runtimeresource "k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -83,6 +86,7 @@ func InitializeLogger(logFilePath string) *zap.Logger {
 func CollectInfo(logger *zap.Logger, k8sClient client.Client, clientSet *kubernetes.Clientset, namespaces []string,
 	path string, allNamespaces, clusterScope bool) error {
 	rootOutputPath := filepath.Join(path, RootOutputDir)
+	ctx := context.TODO()
 	nsList := sets.String{}
 	nsList.Insert(namespaces...)
 
@@ -90,7 +94,7 @@ func CollectInfo(logger *zap.Logger, k8sClient client.Client, clientSet *kuberne
 		logger.Info("Capturing for all namespaces")
 
 		namespaceObjs := &corev1.NamespaceList{}
-		if err := k8sClient.List(context.TODO(), namespaceObjs); err != nil {
+		if err := k8sClient.List(ctx, namespaceObjs); err != nil {
 			return err
 		}
 
@@ -105,7 +109,11 @@ func CollectInfo(logger *zap.Logger, k8sClient client.Client, clientSet *kuberne
 			return err
 		}
 
-		if err := capturePodLogs(logger, clientSet, ns, objOutputDir); err != nil {
+		if err := capturePodLogs(ctx, logger, clientSet, ns, objOutputDir); err != nil {
+			return err
+		}
+
+		if err := captureEvents(ctx, logger, clientSet, ns, objOutputDir); err != nil {
 			return err
 		}
 
@@ -215,8 +223,9 @@ func makeTarAndClean(pathToStore string) error {
 	return os.RemoveAll(filepath.Join(pathToStore, RootOutputDir))
 }
 
-func capturePodLogs(logger *zap.Logger, clientSet *kubernetes.Clientset, ns, rootOutputPath string) error {
-	pods, err := clientSet.CoreV1().Pods(ns).List(context.TODO(), metav1.ListOptions{})
+func capturePodLogs(ctx context.Context, logger *zap.Logger, clientSet *kubernetes.Clientset, ns,
+	rootOutputPath string) error {
+	pods, err := clientSet.CoreV1().Pods(ns).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		logger.Error("Not able to list ", zap.String("object", PodKind), zap.Error(err))
 		return nil
@@ -363,4 +372,105 @@ func compress(src string, buf io.Writer) error {
 	}
 	// produce gzip
 	return zr.Close()
+}
+
+func appendOneEvent(data *[]byte, e *corev1.Event) {
+	event := fmt.Sprintf("%s\t%s\t%s\t%s/%s\t%v\n", getInterval(e), e.Type, e.Reason, e.InvolvedObject.Kind,
+		e.InvolvedObject.Name, strings.TrimSpace(e.Message))
+	*data = append(*data, event...)
+}
+
+func captureEvents(ctx context.Context, logger *zap.Logger, clientSet *kubernetes.Clientset, namespace,
+	rootOutputPath string) error {
+	listOptions := metav1.ListOptions{Limit: 500}
+
+	e := clientSet.CoreV1().Events(namespace)
+	el := &corev1.EventList{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "EventList",
+			APIVersion: "v1",
+		},
+	}
+	err := runtimeresource.FollowContinue(&listOptions,
+		func(options metav1.ListOptions) (runtime.Object, error) {
+			newEvents, err := e.List(ctx, options)
+			if err != nil {
+				return nil, runtimeresource.EnhanceListError(err, options, "events")
+			}
+			el.Items = append(el.Items, newEvents.Items...)
+			return newEvents, nil
+		})
+
+	if err != nil {
+		return err
+	}
+
+	if len(el.Items) == 0 {
+		logger.Info("No events found in namespace", zap.String("namespace", namespace))
+		return nil
+	}
+
+	data := []byte("LAST SEEN\tTYPE\tREASON\tOBJECT\tMESSAGE\n")
+	for idx := range el.Items {
+		appendOneEvent(&data, &el.Items[idx])
+	}
+
+	objOutputDir := filepath.Join(rootOutputPath, "Events")
+	if err := os.MkdirAll(objOutputDir, os.ModePerm); err != nil {
+		return err
+	}
+
+	fileName := filepath.Join(objOutputDir, "events.log")
+
+	if err := populateScraperDir(data, fileName); err != nil {
+		return err
+	}
+
+	logger.Info("Successfully saved ", zap.String("object", "Events"),
+		zap.Int("no of objects", len(el.Items)), zap.String("namespace", namespace))
+
+	return nil
+}
+
+func getInterval(e *corev1.Event) string {
+	var interval string
+
+	firstTimestampSince := translateMicroTimestampSince(e.EventTime)
+	if e.EventTime.IsZero() {
+		firstTimestampSince = translateTimestampSince(e.FirstTimestamp)
+	}
+
+	switch {
+	case e.Series != nil:
+		interval = fmt.Sprintf("%s (x%d over %s)", translateMicroTimestampSince(e.Series.LastObservedTime),
+			e.Series.Count, firstTimestampSince)
+
+	case e.Count > 1:
+		interval = fmt.Sprintf("%s (x%d over %s)", translateTimestampSince(e.LastTimestamp), e.Count, firstTimestampSince)
+
+	default:
+		interval = firstTimestampSince
+	}
+
+	return interval
+}
+
+// translateMicroTimestampSince returns the elapsed time since timestamp in
+// human-readable approximation.
+func translateMicroTimestampSince(timestamp metav1.MicroTime) string {
+	if timestamp.IsZero() {
+		return "<unknown>"
+	}
+
+	return duration.HumanDuration(time.Since(timestamp.Time))
+}
+
+// translateTimestampSince returns the elapsed time since timestamp in
+// human-readable approximation.
+func translateTimestampSince(timestamp metav1.Time) string {
+	if timestamp.IsZero() {
+		return "<unknown>"
+	}
+
+	return duration.HumanDuration(time.Since(timestamp.Time))
 }

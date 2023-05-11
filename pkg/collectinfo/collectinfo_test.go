@@ -142,7 +142,7 @@ var _ = Describe("collectInfo", func() {
 			err = os.MkdirAll(collectinfo.RootOutputDir, os.ModePerm)
 			Expect(err).ToNot(HaveOccurred())
 
-			logger := collectinfo.InitializeLogger(filepath.Join(collectinfo.RootOutputDir, "logFile.log"))
+			logger := collectinfo.InitializeLogger(filepath.Join(collectinfo.RootOutputDir, collectinfo.LogFileName))
 
 			err = collectinfo.CollectInfo(logger, k8sClient, k8sClientset, nslist, "", false, true)
 			Expect(err).ToNot(HaveOccurred())
