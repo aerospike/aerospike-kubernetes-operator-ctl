@@ -34,8 +34,8 @@ const (
 )
 
 var (
-	clusterScopeDir   = filepath.Join(collectinfo.RootOutputDir, "k8s_cluster")
-	namespaceScopeDir = filepath.Join(collectinfo.RootOutputDir, "k8s_namespaces")
+	clusterScopeDir   = filepath.Join(collectinfo.RootOutputDir, collectinfo.ClusterScopedDir)
+	namespaceScopeDir = filepath.Join(collectinfo.RootOutputDir, collectinfo.NamespaceScopedDir)
 )
 
 // key format: RootOutputDir/<k8s-cluster or k8s-namespaces>/ns/<objectKIND>/<objectName>

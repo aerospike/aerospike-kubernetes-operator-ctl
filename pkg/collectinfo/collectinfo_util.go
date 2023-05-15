@@ -31,9 +31,11 @@ import (
 )
 
 const (
-	RootOutputDir = "akoctl_collectinfo"
-	LogFileName   = "akoctl.log"
-	FileSuffix    = ".yaml"
+	RootOutputDir      = "akoctl_collectinfo"
+	NamespaceScopedDir = "k8s_namespaces"
+	ClusterScopedDir   = "k8s_cluster"
+	LogFileName        = "akoctl.log"
+	FileSuffix         = ".yaml"
 )
 
 var (
@@ -104,7 +106,7 @@ func CollectInfo(logger *zap.Logger, k8sClient client.Client, clientSet *kuberne
 	}
 
 	for ns := range nsList {
-		objOutputDir := filepath.Join(rootOutputPath, "k8s_namespaces", ns)
+		objOutputDir := filepath.Join(rootOutputPath, NamespaceScopedDir, ns)
 		if err := os.MkdirAll(objOutputDir, os.ModePerm); err != nil {
 			return err
 		}
@@ -127,7 +129,7 @@ func CollectInfo(logger *zap.Logger, k8sClient client.Client, clientSet *kuberne
 	if clusterScope {
 		logger.Info("Capturing cluster scoped objects info")
 
-		objOutputDir := filepath.Join(rootOutputPath, "k8s_cluster")
+		objOutputDir := filepath.Join(rootOutputPath, ClusterScopedDir)
 		if err := os.MkdirAll(objOutputDir, os.ModePerm); err != nil {
 			return err
 		}
@@ -415,12 +417,12 @@ func captureEvents(ctx context.Context, logger *zap.Logger, clientSet *kubernete
 		appendOneEvent(&data, &el.Items[idx])
 	}
 
-	objOutputDir := filepath.Join(rootOutputPath, "events")
+	objOutputDir := filepath.Join(rootOutputPath, KindDirNames[EventKind])
 	if err := os.MkdirAll(objOutputDir, os.ModePerm); err != nil {
 		return err
 	}
 
-	fileName := filepath.Join(objOutputDir, "events.log")
+	fileName := filepath.Join(objOutputDir, KindDirNames[EventKind]+".log")
 
 	if err := populateScraperDir(data, fileName); err != nil {
 		return err

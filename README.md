@@ -51,26 +51,26 @@ Additionally, the following cluster-wide data points are collected:
 ```shell
 akoctl_collectinfo
 ├── akoctl.log
-├── k8s-cluster
-│   ├── Node
+├── k8s_cluster
+│   ├── nodes
 │   │   ├── <node1 name>.yaml
 │   │   └── <node2 name>.yaml
-│   └── StorageClass
+│   └── storageclasses
 │       ├── <storageclass name>.yaml
-└── k8s-namespaces
+└── k8s_namespaces
     └── aerospike
-        ├── AerospikeCluster
-        ├── Event
-        ├── PersistentVolumeClaim
+        ├── aerospikeclusters
+        ├── events
+        ├── persistentvolumeclaims
         │   ├── <pvc name>.yaml
-        ├── Pod
+        ├── pods
         │   ├── <pod name>
         │   │   ├── <pod name>.yaml
         │   │   └── logs
         │   │       ├── previous
         │   │       │   └── <container name>.log
         │   │       └── <container name>.log
-        └── StatefulSet
+        └── statefulsets
         │   ├── <sts name>.yaml
 
 ```

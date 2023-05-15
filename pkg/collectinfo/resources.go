@@ -14,6 +14,7 @@ const (
 	SCKind               = "StorageClass"
 	AerospikeClusterKind = "AerospikeCluster"
 	PodKind              = "Pod"
+	EventKind            = "Event"
 )
 
 var (
@@ -24,6 +25,7 @@ var (
 		SCKind:               "storageclasses",
 		AerospikeClusterKind: "aerospikeclusters",
 		PodKind:              "pods",
+		EventKind:            "events",
 	}
 	gvkListNSScoped = []schema.GroupVersionKind{
 		corev1.SchemeGroupVersion.WithKind(PVCKind),
