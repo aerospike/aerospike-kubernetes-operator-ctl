@@ -34,27 +34,27 @@ const (
 )
 
 var (
-	clusterScopeDir   = filepath.Join(collectinfo.RootOutputDir, "k8s-cluster")
-	namespaceScopeDir = filepath.Join(collectinfo.RootOutputDir, "k8s-namespaces")
+	clusterScopeDir   = filepath.Join(collectinfo.RootOutputDir, "k8s_cluster")
+	namespaceScopeDir = filepath.Join(collectinfo.RootOutputDir, "k8s_namespaces")
 )
 
 // key format: RootOutputDir/<k8s-cluster or k8s-namespaces>/ns/<objectKIND>/<objectName>
 var filesList = map[string]bool{
-	filepath.Join(clusterScopeDir, collectinfo.NodeKind,
+	filepath.Join(clusterScopeDir, collectinfo.KindDirNames[collectinfo.NodeKind],
 		nodeName+collectinfo.FileSuffix): false,
-	filepath.Join(clusterScopeDir, collectinfo.SCKind,
+	filepath.Join(clusterScopeDir, collectinfo.KindDirNames[collectinfo.SCKind],
 		scName+collectinfo.FileSuffix): false,
-	filepath.Join(namespaceScopeDir, namespace, collectinfo.PVCKind,
+	filepath.Join(namespaceScopeDir, namespace, collectinfo.KindDirNames[collectinfo.PVCKind],
 		pvcName+collectinfo.FileSuffix): false,
-	filepath.Join(namespaceScopeDir, namespace, collectinfo.STSKind,
+	filepath.Join(namespaceScopeDir, namespace, collectinfo.KindDirNames[collectinfo.STSKind],
 		stsName+collectinfo.FileSuffix): false,
-	filepath.Join(namespaceScopeDir, namespace, collectinfo.PodKind, podName, "logs",
+	filepath.Join(namespaceScopeDir, namespace, collectinfo.KindDirNames[collectinfo.PodKind], podName, "logs",
 		containerName+".log"): false,
-	filepath.Join(namespaceScopeDir, namespace, collectinfo.PodKind, podName, "logs", "previous",
+	filepath.Join(namespaceScopeDir, namespace, collectinfo.KindDirNames[collectinfo.PodKind], podName, "logs", "previous",
 		containerName+".log"): false,
-	filepath.Join(namespaceScopeDir, namespace, collectinfo.PodKind, podName,
+	filepath.Join(namespaceScopeDir, namespace, collectinfo.KindDirNames[collectinfo.PodKind], podName,
 		podName+collectinfo.FileSuffix): false,
-	filepath.Join(namespaceScopeDir, namespace, collectinfo.AerospikeClusterKind,
+	filepath.Join(namespaceScopeDir, namespace, collectinfo.KindDirNames[collectinfo.AerospikeClusterKind],
 		aerospikeClusterName+collectinfo.FileSuffix): false,
 	filepath.Join(collectinfo.RootOutputDir,
 		collectinfo.LogFileName): false,

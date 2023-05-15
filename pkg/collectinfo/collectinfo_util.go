@@ -57,7 +57,7 @@ func RunCollectInfo(namespaces []string, path string, allNamespaces, clusterScop
 	k8sClient, clientSet, err := createKubeClients(config.GetConfigOrDie())
 	if err != nil {
 		logger.Error("Not able to create kube clients", zap.Error(err))
-		return nil
+		return err
 	}
 
 	if err := CollectInfo(logger, k8sClient, clientSet, namespaces, path, allNamespaces, clusterScope); err != nil {
@@ -104,7 +104,7 @@ func CollectInfo(logger *zap.Logger, k8sClient client.Client, clientSet *kuberne
 	}
 
 	for ns := range nsList {
-		objOutputDir := filepath.Join(rootOutputPath, "k8s-namespaces", ns)
+		objOutputDir := filepath.Join(rootOutputPath, "k8s_namespaces", ns)
 		if err := os.MkdirAll(objOutputDir, os.ModePerm); err != nil {
 			return err
 		}
@@ -127,7 +127,7 @@ func CollectInfo(logger *zap.Logger, k8sClient client.Client, clientSet *kuberne
 	if clusterScope {
 		logger.Info("Capturing cluster scoped objects info")
 
-		objOutputDir := filepath.Join(rootOutputPath, "k8s-cluster")
+		objOutputDir := filepath.Join(rootOutputPath, "k8s_cluster")
 		if err := os.MkdirAll(objOutputDir, os.ModePerm); err != nil {
 			return err
 		}
@@ -174,10 +174,10 @@ func captureObject(logger *zap.Logger, k8sClient client.Client, gvk schema.Group
 
 	if err := k8sClient.List(context.TODO(), u, listOps); err != nil {
 		logger.Error("Not able to list ", zap.String("object", gvk.Kind), zap.Error(err))
-		return nil
+		return err
 	}
 
-	objOutputDir := filepath.Join(rootOutputPath, gvk.Kind)
+	objOutputDir := filepath.Join(rootOutputPath, KindDirNames[gvk.Kind])
 	if err := os.MkdirAll(objOutputDir, os.ModePerm); err != nil {
 		return err
 	}
@@ -228,7 +228,7 @@ func capturePodLogs(ctx context.Context, logger *zap.Logger, clientSet *kubernet
 	pods, err := clientSet.CoreV1().Pods(ns).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		logger.Error("Not able to list ", zap.String("object", PodKind), zap.Error(err))
-		return nil
+		return err
 	}
 
 	for podIndex := range pods.Items {
@@ -237,7 +237,7 @@ func capturePodLogs(ctx context.Context, logger *zap.Logger, clientSet *kubernet
 			return err
 		}
 
-		podLogsDir := filepath.Join(rootOutputPath, PodKind, pods.Items[podIndex].Name, "logs")
+		podLogsDir := filepath.Join(rootOutputPath, KindDirNames[PodKind], pods.Items[podIndex].Name, "logs")
 		if err := os.MkdirAll(podLogsDir, os.ModePerm); err != nil {
 			return err
 		}
@@ -415,7 +415,7 @@ func captureEvents(ctx context.Context, logger *zap.Logger, clientSet *kubernete
 		appendOneEvent(&data, &el.Items[idx])
 	}
 
-	objOutputDir := filepath.Join(rootOutputPath, "Events")
+	objOutputDir := filepath.Join(rootOutputPath, "events")
 	if err := os.MkdirAll(objOutputDir, os.ModePerm); err != nil {
 		return err
 	}

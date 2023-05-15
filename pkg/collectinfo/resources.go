@@ -17,6 +17,14 @@ const (
 )
 
 var (
+	KindDirNames = map[string]string{
+		NodeKind:             "nodes",
+		PVCKind:              "persistentvolumeclaims",
+		STSKind:              "statefulsets",
+		SCKind:               "storageclasses",
+		AerospikeClusterKind: "aerospikeclusters",
+		PodKind:              "pods",
+	}
 	gvkListNSScoped = []schema.GroupVersionKind{
 		corev1.SchemeGroupVersion.WithKind(PVCKind),
 		appsv1.SchemeGroupVersion.WithKind(STSKind),
