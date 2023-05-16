@@ -11,6 +11,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	admissionv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/storage/v1"
@@ -44,6 +45,10 @@ var filesList = map[string]bool{
 		nodeName+collectinfo.FileSuffix): false,
 	filepath.Join(clusterScopeDir, collectinfo.KindDirNames[collectinfo.SCKind],
 		scName+collectinfo.FileSuffix): false,
+	filepath.Join(clusterScopeDir, collectinfo.KindDirNames[collectinfo.MutatingWebhookKind],
+		collectinfo.MutatingWebhookName+collectinfo.FileSuffix): false,
+	filepath.Join(clusterScopeDir, collectinfo.KindDirNames[collectinfo.ValidatingWebhookKind],
+		collectinfo.ValidatingWebhookName+collectinfo.FileSuffix): false,
 	filepath.Join(namespaceScopeDir, namespace, collectinfo.KindDirNames[collectinfo.PVCKind],
 		pvcName+collectinfo.FileSuffix): false,
 	filepath.Join(namespaceScopeDir, namespace, collectinfo.KindDirNames[collectinfo.STSKind],
@@ -123,6 +128,18 @@ var _ = Describe("collectInfo", func() {
 			err = k8sClient.Create(context.TODO(), pod, createOption)
 			Expect(err).ToNot(HaveOccurred())
 
+			mutatingWebhook := &admissionv1.MutatingWebhookConfiguration{
+				ObjectMeta: metav1.ObjectMeta{Name: collectinfo.MutatingWebhookName},
+			}
+			err = k8sClient.Create(context.TODO(), mutatingWebhook, createOption)
+			Expect(err).ToNot(HaveOccurred())
+
+			validatingWebhook := &admissionv1.ValidatingWebhookConfiguration{
+				ObjectMeta: metav1.ObjectMeta{Name: collectinfo.ValidatingWebhookName},
+			}
+			err = k8sClient.Create(context.TODO(), validatingWebhook, createOption)
+			Expect(err).ToNot(HaveOccurred())
+
 			gvk := schema.GroupVersionKind{
 				Group:   "asdb.aerospike.com",
 				Version: "v1beta1",
@@ -147,13 +164,13 @@ var _ = Describe("collectInfo", func() {
 			err = collectinfo.CollectInfo(logger, k8sClient, k8sClientset, nslist, "", false, true)
 			Expect(err).ToNot(HaveOccurred())
 
-			err = validateTar(collectinfo.TarName, filesList)
+			err = validateAndDeleteTar(collectinfo.TarName, filesList)
 			Expect(err).ToNot(HaveOccurred())
 		})
 	})
 })
 
-func validateTar(srcFile string, filesList map[string]bool) error {
+func validateAndDeleteTar(srcFile string, filesList map[string]bool) error {
 	f, err := os.Open(srcFile)
 	if err != nil {
 		return err
@@ -208,5 +225,5 @@ func validateTar(srcFile string, filesList map[string]bool) error {
 		return fmt.Errorf("certain log files are missing %v", missingFiles)
 	}
 
-	return nil
+	return os.Remove(srcFile)
 }

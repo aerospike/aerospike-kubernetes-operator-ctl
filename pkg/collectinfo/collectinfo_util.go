@@ -31,11 +31,15 @@ import (
 )
 
 const (
-	RootOutputDir      = "akoctl_collectinfo"
-	NamespaceScopedDir = "k8s_namespaces"
-	ClusterScopedDir   = "k8s_cluster"
-	LogFileName        = "akoctl.log"
-	FileSuffix         = ".yaml"
+	RootOutputDir           = "akoctl_collectinfo"
+	NamespaceScopedDir      = "k8s_namespaces"
+	ClusterScopedDir        = "k8s_cluster"
+	LogFileName             = "akoctl.log"
+	FileSuffix              = ".yaml"
+	MutatingWebhookPrefix   = "maerospikecluster.kb.io-"
+	ValidatingWebhookPrefix = "vaerospikecluster.kb.io-"
+	MutatingWebhookName     = "aerospike-operator-mutating-webhook-configuration"
+	ValidatingWebhookName   = "aerospike-operator-validating-webhook-configuration"
 )
 
 var (
@@ -136,6 +140,12 @@ func CollectInfo(logger *zap.Logger, k8sClient client.Client, clientSet *kuberne
 
 		for _, gvk := range gvkListClusterScoped {
 			if err := captureObject(logger, k8sClient, gvk, "", objOutputDir); err != nil {
+				return err
+			}
+		}
+
+		for _, webhooksGVK := range gvkListWebhooks {
+			if err := captureWebhooks(logger, k8sClient, webhooksGVK, objOutputDir); err != nil {
 				return err
 			}
 		}
@@ -475,4 +485,60 @@ func translateTimestampSince(timestamp metav1.Time) string {
 	}
 
 	return duration.HumanDuration(time.Since(timestamp.Time))
+}
+
+func captureWebhooks(logger *zap.Logger, k8sClient client.Client, gvk schema.GroupVersionKind,
+	rootOutputPath string) error {
+	listOps := &client.ListOptions{}
+	u := &unstructured.UnstructuredList{}
+
+	u.SetGroupVersionKind(gvk)
+
+	if err := k8sClient.List(context.TODO(), u, listOps); err != nil {
+		logger.Error("Not able to list ", zap.String("object", gvk.Kind), zap.Error(err))
+		return err
+	}
+
+	objOutputDir := filepath.Join(rootOutputPath, KindDirNames[gvk.Kind])
+	if err := os.MkdirAll(objOutputDir, os.ModePerm); err != nil {
+		return err
+	}
+
+	idx := -1
+	captureWebhook := false
+
+	switch gvk.Kind {
+	case MutatingWebhookKind:
+		for idx = range u.Items {
+			name := u.Items[idx].GetName()
+			if strings.HasPrefix(name, MutatingWebhookPrefix) || name == MutatingWebhookName {
+				captureWebhook = true
+				break
+			}
+		}
+	case ValidatingWebhookKind:
+		for idx = range u.Items {
+			name := u.Items[idx].GetName()
+			if strings.HasPrefix(name, ValidatingWebhookPrefix) || name == ValidatingWebhookName {
+				captureWebhook = true
+				break
+			}
+		}
+	}
+
+	if captureWebhook {
+		clusterData, err := yaml.Marshal(u.Items[idx])
+		if err != nil {
+			return err
+		}
+
+		fileName := filepath.Join(objOutputDir,
+			u.Items[idx].GetName()+FileSuffix)
+
+		if err := populateScraperDir(clusterData, fileName); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
