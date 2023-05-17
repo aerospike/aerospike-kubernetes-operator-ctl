@@ -29,8 +29,8 @@ var (
 		AerospikeClusterKind:  "aerospikeclusters",
 		PodKind:               "pods",
 		EventKind:             "events",
-		MutatingWebhookKind:   "webhooks",
-		ValidatingWebhookKind: "webhooks",
+		MutatingWebhookKind:   "mutatingwebhooks",
+		ValidatingWebhookKind: "validatingwebhooks",
 	}
 	gvkListNSScoped = []schema.GroupVersionKind{
 		corev1.SchemeGroupVersion.WithKind(PVCKind),

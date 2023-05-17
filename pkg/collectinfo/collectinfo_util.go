@@ -36,8 +36,8 @@ const (
 	ClusterScopedDir        = "k8s_cluster"
 	LogFileName             = "akoctl.log"
 	FileSuffix              = ".yaml"
-	MutatingWebhookPrefix   = "maerospikecluster.kb.io-"
-	ValidatingWebhookPrefix = "vaerospikecluster.kb.io-"
+	MutatingWebhookPrefix   = "maerospikecluster.kb.io"
+	ValidatingWebhookPrefix = "vaerospikecluster.kb.io"
 	MutatingWebhookName     = "aerospike-operator-mutating-webhook-configuration"
 	ValidatingWebhookName   = "aerospike-operator-validating-webhook-configuration"
 )
@@ -145,7 +145,7 @@ func CollectInfo(logger *zap.Logger, k8sClient client.Client, clientSet *kuberne
 		}
 
 		for _, webhooksGVK := range gvkListWebhooks {
-			if err := captureWebhooks(logger, k8sClient, webhooksGVK, objOutputDir); err != nil {
+			if err := captureWebhookConfigurations(logger, k8sClient, webhooksGVK, objOutputDir); err != nil {
 				return err
 			}
 		}
@@ -487,7 +487,7 @@ func translateTimestampSince(timestamp metav1.Time) string {
 	return duration.HumanDuration(time.Since(timestamp.Time))
 }
 
-func captureWebhooks(logger *zap.Logger, k8sClient client.Client, gvk schema.GroupVersionKind,
+func captureWebhookConfigurations(logger *zap.Logger, k8sClient client.Client, gvk schema.GroupVersionKind,
 	rootOutputPath string) error {
 	listOps := &client.ListOptions{}
 	u := &unstructured.UnstructuredList{}
@@ -504,41 +504,51 @@ func captureWebhooks(logger *zap.Logger, k8sClient client.Client, gvk schema.Gro
 		return err
 	}
 
-	idx := -1
-	captureWebhook := false
+	count := 0
 
 	switch gvk.Kind {
 	case MutatingWebhookKind:
-		for idx = range u.Items {
+		for idx := range u.Items {
 			name := u.Items[idx].GetName()
 			if strings.HasPrefix(name, MutatingWebhookPrefix) || name == MutatingWebhookName {
-				captureWebhook = true
-				break
+				clusterData, err := yaml.Marshal(u.Items[idx])
+				if err != nil {
+					return err
+				}
+
+				fileName := filepath.Join(objOutputDir,
+					u.Items[idx].GetName()+FileSuffix)
+
+				if err := populateScraperDir(clusterData, fileName); err != nil {
+					return err
+				}
+
+				count++
 			}
 		}
 	case ValidatingWebhookKind:
-		for idx = range u.Items {
+		for idx := range u.Items {
 			name := u.Items[idx].GetName()
 			if strings.HasPrefix(name, ValidatingWebhookPrefix) || name == ValidatingWebhookName {
-				captureWebhook = true
-				break
+				clusterData, err := yaml.Marshal(u.Items[idx])
+				if err != nil {
+					return err
+				}
+
+				fileName := filepath.Join(objOutputDir,
+					u.Items[idx].GetName()+FileSuffix)
+
+				if err := populateScraperDir(clusterData, fileName); err != nil {
+					return err
+				}
+
+				count++
 			}
 		}
 	}
 
-	if captureWebhook {
-		clusterData, err := yaml.Marshal(u.Items[idx])
-		if err != nil {
-			return err
-		}
-
-		fileName := filepath.Join(objOutputDir,
-			u.Items[idx].GetName()+FileSuffix)
-
-		if err := populateScraperDir(clusterData, fileName); err != nil {
-			return err
-		}
-	}
+	logger.Info("Successfully saved ", zap.String("object", gvk.Kind),
+		zap.Int("no of objects", count))
 
 	return nil
 }
