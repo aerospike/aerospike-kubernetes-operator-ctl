@@ -37,4 +37,4 @@ goreleaser-install: $(LOCALBIN)
 
 .PHONY: gorelease
 gorelease: goreleaser-install
-	goreleaser release --snapshot --clean
+	$(LOCALBIN)/goreleaser release --snapshot --clean
