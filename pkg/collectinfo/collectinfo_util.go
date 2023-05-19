@@ -195,15 +195,7 @@ func captureObject(logger *zap.Logger, k8sClient client.Client, gvk schema.Group
 	}
 
 	for idx := range u.Items {
-		clusterData, err := yaml.Marshal(u.Items[idx])
-		if err != nil {
-			return err
-		}
-
-		fileName := filepath.Join(objOutputDir,
-			u.Items[idx].GetName()+FileSuffix)
-
-		if err := populateScraperDir(clusterData, fileName); err != nil {
+		if err := serializeAndWrite(u.Items[idx], objOutputDir); err != nil {
 			return err
 		}
 	}
@@ -511,18 +503,9 @@ func captureWebhookConfigurations(logger *zap.Logger, k8sClient client.Client, g
 		for idx := range u.Items {
 			name := u.Items[idx].GetName()
 			if strings.HasPrefix(name, MutatingWebhookPrefix) || name == MutatingWebhookName {
-				clusterData, err := yaml.Marshal(u.Items[idx])
-				if err != nil {
+				if err := serializeAndWrite(u.Items[idx], objOutputDir); err != nil {
 					return err
 				}
-
-				fileName := filepath.Join(objOutputDir,
-					u.Items[idx].GetName()+FileSuffix)
-
-				if err := populateScraperDir(clusterData, fileName); err != nil {
-					return err
-				}
-
 				count++
 			}
 		}
@@ -530,18 +513,9 @@ func captureWebhookConfigurations(logger *zap.Logger, k8sClient client.Client, g
 		for idx := range u.Items {
 			name := u.Items[idx].GetName()
 			if strings.HasPrefix(name, ValidatingWebhookPrefix) || name == ValidatingWebhookName {
-				clusterData, err := yaml.Marshal(u.Items[idx])
-				if err != nil {
+				if err := serializeAndWrite(u.Items[idx], objOutputDir); err != nil {
 					return err
 				}
-
-				fileName := filepath.Join(objOutputDir,
-					u.Items[idx].GetName()+FileSuffix)
-
-				if err := populateScraperDir(clusterData, fileName); err != nil {
-					return err
-				}
-
 				count++
 			}
 		}
@@ -551,4 +525,16 @@ func captureWebhookConfigurations(logger *zap.Logger, k8sClient client.Client, g
 		zap.Int("no of objects", count))
 
 	return nil
+}
+
+func serializeAndWrite(obj unstructured.Unstructured, objOutputDir string) error {
+	clusterData, err := yaml.Marshal(obj)
+	if err != nil {
+		return err
+	}
+
+	fileName := filepath.Join(objOutputDir,
+		obj.GetName()+FileSuffix)
+
+	return populateScraperDir(clusterData, fileName)
 }

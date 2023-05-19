@@ -27,5 +27,14 @@ envtest: $(ENVTEST) ## Download envtest-setup locally if necessary.
 $(ENVTEST): $(LOCALBIN)
 	GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
 
+.PHONY: build
 build:
 	go build -o bin/akoctl main.go
+
+.PHONY: goreleaser-install
+goreleaser-install: $(LOCALBIN)
+	GOBIN=$(LOCALBIN) go install github.com/goreleaser/goreleaser@latest
+
+.PHONY: gorelease
+gorelease: goreleaser-install
+	goreleaser release --snapshot --clean
