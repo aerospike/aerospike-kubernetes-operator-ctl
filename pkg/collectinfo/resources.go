@@ -1,6 +1,7 @@
 package collectinfo
 
 import (
+	admissionv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/storage/v1"
@@ -8,24 +9,28 @@ import (
 )
 
 const (
-	NodeKind             = "Node"
-	PVCKind              = "PersistentVolumeClaim"
-	STSKind              = "StatefulSet"
-	SCKind               = "StorageClass"
-	AerospikeClusterKind = "AerospikeCluster"
-	PodKind              = "Pod"
-	EventKind            = "Event"
+	NodeKind              = "Node"
+	PVCKind               = "PersistentVolumeClaim"
+	STSKind               = "StatefulSet"
+	SCKind                = "StorageClass"
+	AerospikeClusterKind  = "AerospikeCluster"
+	PodKind               = "Pod"
+	EventKind             = "Event"
+	MutatingWebhookKind   = "MutatingWebhookConfiguration"
+	ValidatingWebhookKind = "ValidatingWebhookConfiguration"
 )
 
 var (
 	KindDirNames = map[string]string{
-		NodeKind:             "nodes",
-		PVCKind:              "persistentvolumeclaims",
-		STSKind:              "statefulsets",
-		SCKind:               "storageclasses",
-		AerospikeClusterKind: "aerospikeclusters",
-		PodKind:              "pods",
-		EventKind:            "events",
+		NodeKind:              "nodes",
+		PVCKind:               "persistentvolumeclaims",
+		STSKind:               "statefulsets",
+		SCKind:                "storageclasses",
+		AerospikeClusterKind:  "aerospikeclusters",
+		PodKind:               "pods",
+		EventKind:             "events",
+		MutatingWebhookKind:   "mutatingwebhookconfigurations",
+		ValidatingWebhookKind: "validatingwebhookconfigurations",
 	}
 	gvkListNSScoped = []schema.GroupVersionKind{
 		corev1.SchemeGroupVersion.WithKind(PVCKind),
@@ -39,5 +44,9 @@ var (
 	gvkListClusterScoped = []schema.GroupVersionKind{
 		corev1.SchemeGroupVersion.WithKind(NodeKind),
 		v1.SchemeGroupVersion.WithKind(SCKind),
+	}
+	gvkListWebhooks = []schema.GroupVersionKind{
+		admissionv1.SchemeGroupVersion.WithKind(MutatingWebhookKind),
+		admissionv1.SchemeGroupVersion.WithKind(ValidatingWebhookKind),
 	}
 )

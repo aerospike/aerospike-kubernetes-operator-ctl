@@ -31,11 +31,15 @@ import (
 )
 
 const (
-	RootOutputDir      = "akoctl_collectinfo"
-	NamespaceScopedDir = "k8s_namespaces"
-	ClusterScopedDir   = "k8s_cluster"
-	LogFileName        = "akoctl.log"
-	FileSuffix         = ".yaml"
+	RootOutputDir           = "akoctl_collectinfo"
+	NamespaceScopedDir      = "k8s_namespaces"
+	ClusterScopedDir        = "k8s_cluster"
+	LogFileName             = "akoctl.log"
+	FileSuffix              = ".yaml"
+	MutatingWebhookPrefix   = "maerospikecluster.kb.io"
+	ValidatingWebhookPrefix = "vaerospikecluster.kb.io"
+	MutatingWebhookName     = "aerospike-operator-mutating-webhook-configuration"
+	ValidatingWebhookName   = "aerospike-operator-validating-webhook-configuration"
 )
 
 var (
@@ -139,6 +143,12 @@ func CollectInfo(logger *zap.Logger, k8sClient client.Client, clientSet *kuberne
 				return err
 			}
 		}
+
+		for _, webhooksGVK := range gvkListWebhooks {
+			if err := captureWebhookConfigurations(logger, k8sClient, webhooksGVK, objOutputDir); err != nil {
+				return err
+			}
+		}
 	}
 
 	logger.Info("Compressing and deleting all logs and created ", zap.String("tar file", TarName))
@@ -185,15 +195,7 @@ func captureObject(logger *zap.Logger, k8sClient client.Client, gvk schema.Group
 	}
 
 	for idx := range u.Items {
-		clusterData, err := yaml.Marshal(u.Items[idx])
-		if err != nil {
-			return err
-		}
-
-		fileName := filepath.Join(objOutputDir,
-			u.Items[idx].GetName()+FileSuffix)
-
-		if err := populateScraperDir(clusterData, fileName); err != nil {
+		if err := serializeAndWrite(u.Items[idx], objOutputDir); err != nil {
 			return err
 		}
 	}
@@ -475,4 +477,64 @@ func translateTimestampSince(timestamp metav1.Time) string {
 	}
 
 	return duration.HumanDuration(time.Since(timestamp.Time))
+}
+
+func captureWebhookConfigurations(logger *zap.Logger, k8sClient client.Client, gvk schema.GroupVersionKind,
+	rootOutputPath string) error {
+	listOps := &client.ListOptions{}
+	u := &unstructured.UnstructuredList{}
+
+	u.SetGroupVersionKind(gvk)
+
+	if err := k8sClient.List(context.TODO(), u, listOps); err != nil {
+		logger.Error("Not able to list ", zap.String("object", gvk.Kind), zap.Error(err))
+		return err
+	}
+
+	objOutputDir := filepath.Join(rootOutputPath, KindDirNames[gvk.Kind])
+	if err := os.MkdirAll(objOutputDir, os.ModePerm); err != nil {
+		return err
+	}
+
+	count := 0
+
+	switch gvk.Kind {
+	case MutatingWebhookKind:
+		for idx := range u.Items {
+			name := u.Items[idx].GetName()
+			if strings.HasPrefix(name, MutatingWebhookPrefix) || name == MutatingWebhookName {
+				if err := serializeAndWrite(u.Items[idx], objOutputDir); err != nil {
+					return err
+				}
+				count++
+			}
+		}
+	case ValidatingWebhookKind:
+		for idx := range u.Items {
+			name := u.Items[idx].GetName()
+			if strings.HasPrefix(name, ValidatingWebhookPrefix) || name == ValidatingWebhookName {
+				if err := serializeAndWrite(u.Items[idx], objOutputDir); err != nil {
+					return err
+				}
+				count++
+			}
+		}
+	}
+
+	logger.Info("Successfully saved ", zap.String("object", gvk.Kind),
+		zap.Int("no of objects", count))
+
+	return nil
+}
+
+func serializeAndWrite(obj unstructured.Unstructured, objOutputDir string) error {
+	clusterData, err := yaml.Marshal(obj)
+	if err != nil {
+		return err
+	}
+
+	fileName := filepath.Join(objOutputDir,
+		obj.GetName()+FileSuffix)
+
+	return populateScraperDir(clusterData, fileName)
 }

@@ -43,6 +43,7 @@ This command collects the following data from the specified namespaces:
 Additionally, the following cluster-wide data points are collected:
 * Storage class objects.
 * Configurations of all nodes in the kubernetes cluster.
+* Configurations of aerospike mutating and validating webhooks.
 
 ### Result Format
 
@@ -57,6 +58,9 @@ akoctl_collectinfo
 │   │   └── <node2 name>.yaml
 │   └── storageclasses
 │       ├── <storageclass name>.yaml
+│   └── webhooks
+│       ├── <mutatingwebhook name>.yaml
+│       ├── <validatingwebhook name>.yaml
 └── k8s_namespaces
     └── aerospike
         ├── aerospikeclusters
