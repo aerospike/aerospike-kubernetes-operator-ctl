@@ -15,7 +15,11 @@ limitations under the License.
 
 package main
 
-import "github.com/aerospike/aerospike-kubernetes-operator-ctl/cmd"
+import (
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
+
+	"github.com/aerospike/aerospike-kubernetes-operator-ctl/cmd"
+)
 
 func main() {
 	cmd.Execute()
