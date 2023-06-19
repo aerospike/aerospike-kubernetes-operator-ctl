@@ -31,6 +31,33 @@ make build
  ./bin/akoctl collectinfo -n aerospike,olm --path ~/abc/ --cluster-scope=false
 ```
 
+#### Install via krew plugin manager
+```sh
+kubectl krew index add akoctl https://github.com/aerospike/aerospike-kubernetes-operator-ctl.git
+
+% kubectl krew index list
+INDEX    URL
+akoctl   https://github.com/aerospike/aerospike-kubernetes-operator-ctl.git
+default  https://github.com/kubernetes-sigs/krew-index.git
+
+% kubectl krew install akoctl/akoctl
+Updated the local copy of plugin index "akoctl".
+Updated the local copy of plugin index.
+Installing plugin: akoctl
+Installed plugin: akoctl
+\
+ | Use this plugin:
+ | 	kubectl akoctl
+ | Documentation:
+ | 	https://github.com/aerospike/aerospike-kubernetes-operator-ctl
+/
+
+```
+
+#### Collect cluster info using krew
+```sh
+ kubectl akoctl collectinfo -n aerospike,olm --path ~/abc/ --cluster-scope=false
+```
 
 ### Data Collected
 
@@ -58,8 +85,9 @@ akoctl_collectinfo
 │   │   └── <node2 name>.yaml
 │   └── storageclasses
 │       ├── <storageclass name>.yaml
-│   └── webhooks
+│   └── mutatingwebhookconfigurations
 │       ├── <mutatingwebhook name>.yaml
+│   └── validatingwebhookconfigurations
 │       ├── <validatingwebhook name>.yaml
 └── k8s_namespaces
     └── aerospike
