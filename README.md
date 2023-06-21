@@ -28,10 +28,15 @@ make build
 
 #### Collect cluster info
 ```sh
- ./bin/akoctl collectinfo -n aerospike,olm --path ~/abc/ --cluster-scope=false
+ ./bin/akoctl collectinfo -n aerospike,olm --path ~/abc/
 ```
 
 #### Install via krew plugin manager
+[Krew](https://krew.sigs.k8s.io) is the plugin manager for kubectl command-line tool. Here `akoctl` has been added as a custom plugin to krew.
+
+##### Install krew 
+To install krew on any platform, follow [this](https://krew.sigs.k8s.io/docs/user-guide/setup/install/).
+##### Install akoctl
 ```sh
 kubectl krew index add akoctl https://github.com/aerospike/aerospike-kubernetes-operator-ctl.git
 
@@ -56,7 +61,7 @@ Installed plugin: akoctl
 
 #### Collect cluster info using krew
 ```sh
- kubectl akoctl collectinfo -n aerospike,olm --path ~/abc/ --cluster-scope=false
+ kubectl akoctl collectinfo -n aerospike,olm --path ~/abc/
 ```
 
 ### Data Collected
