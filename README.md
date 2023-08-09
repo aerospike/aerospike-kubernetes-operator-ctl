@@ -94,6 +94,8 @@ akoctl_collectinfo
 │       ├── <mutatingwebhook name>.yaml
 │   └── validatingwebhookconfigurations
 │       ├── <validatingwebhook name>.yaml
+│   └── persistentvolumes
+│       ├── <persistentvolume name>.yaml
 └── k8s_namespaces
     └── aerospike
         ├── aerospikeclusters
@@ -109,5 +111,7 @@ akoctl_collectinfo
         │   │       └── <container name>.log
         └── statefulsets
         │   ├── <sts name>.yaml
+        └── services
+        │   ├── <service name>.yaml
 
 ```

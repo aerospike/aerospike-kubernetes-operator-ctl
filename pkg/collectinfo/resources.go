@@ -11,6 +11,7 @@ import (
 const (
 	NodeKind              = "Node"
 	PVCKind               = "PersistentVolumeClaim"
+	PVKind                = "PersistentVolume"
 	STSKind               = "StatefulSet"
 	SCKind                = "StorageClass"
 	AerospikeClusterKind  = "AerospikeCluster"
@@ -18,12 +19,14 @@ const (
 	EventKind             = "Event"
 	MutatingWebhookKind   = "MutatingWebhookConfiguration"
 	ValidatingWebhookKind = "ValidatingWebhookConfiguration"
+	ServiceKind           = "Service"
 )
 
 var (
 	KindDirNames = map[string]string{
 		NodeKind:              "nodes",
 		PVCKind:               "persistentvolumeclaims",
+		PVKind:                "persistentvolumes",
 		STSKind:               "statefulsets",
 		SCKind:                "storageclasses",
 		AerospikeClusterKind:  "aerospikeclusters",
@@ -31,10 +34,12 @@ var (
 		EventKind:             "events",
 		MutatingWebhookKind:   "mutatingwebhookconfigurations",
 		ValidatingWebhookKind: "validatingwebhookconfigurations",
+		ServiceKind:           "services",
 	}
 	gvkListNSScoped = []schema.GroupVersionKind{
 		corev1.SchemeGroupVersion.WithKind(PVCKind),
 		appsv1.SchemeGroupVersion.WithKind(STSKind),
+		corev1.SchemeGroupVersion.WithKind(ServiceKind),
 		{
 			Group:   "asdb.aerospike.com",
 			Version: "v1beta1",
@@ -44,6 +49,7 @@ var (
 	gvkListClusterScoped = []schema.GroupVersionKind{
 		corev1.SchemeGroupVersion.WithKind(NodeKind),
 		v1.SchemeGroupVersion.WithKind(SCKind),
+		corev1.SchemeGroupVersion.WithKind(PVKind),
 	}
 	gvkListWebhooks = []schema.GroupVersionKind{
 		admissionv1.SchemeGroupVersion.WithKind(MutatingWebhookKind),
