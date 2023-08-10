@@ -9,6 +9,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gexec"
+	"golang.org/x/net/context"
 	corev1 "k8s.io/api/core/v1"
 	apixv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -27,8 +28,9 @@ var (
 	testEnv      *envtest.Environment
 	cfg          *rest.Config
 	k8sClient    client.Client
+	testCtx      = context.TODO()
 	namespace    = "testns"
-	k8sClientset *kubernetes.Clientset
+	k8sClientSet *kubernetes.Clientset
 )
 
 func TestPkg(t *testing.T) {
@@ -67,7 +69,7 @@ var _ = BeforeSuite(
 		Expect(err).NotTo(HaveOccurred())
 		Expect(k8sClient).NotTo(BeNil())
 
-		k8sClientset = kubernetes.NewForConfigOrDie(cfg)
+		k8sClientSet = kubernetes.NewForConfigOrDie(cfg)
 		Expect(k8sClient).NotTo(BeNil())
 
 		ctx := goctx.TODO()

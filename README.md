@@ -1,40 +1,22 @@
 # Aerospike-kubernetes-operator-ctl
 
-This is a command line tool for Aerospike kubernetes operator.
+This is a command line tool for Aerospike Kubernetes Operator. It provides multiple sub-commands to perform different functions related to Aerospike Kubernetes Operator and Aerospike Kubernetes Cluster.
 
-## Aerospike Kubernetes Operator Log Collector
-
-### Overview
-
-collectinfo command collects all the required info from kubernetes cluster, which are available at the time of command being executed.
-
-There are certain flags associated with command:
-* **all-namespaces** - (shorthand -A, type bool) Collect info from all namespaces present in cluster.
-* **namespaces** - (shorthand -n, type string) Comma separated list of namespaces from which data needs to be collected.
-* **kubeconfig** - (type string) Absolute path to the kubeconfig file.
-* **path** - (type string) Absolute path to save output tar file.
-* **cluster-scope** - (type bool) Permission to collect cluster scoped objects info. Default true.
-
-### Permission required
-* Current user should have the list and get permission for all the objects collected by the command.
-* If **cluster-scope** flag is set, along with permissions mentioned above, user should have list and get permission for cluster-scoped resources like(nodes and storageclasses).
+Available sub-commands:
+1. [`collectinfo`](#aerospike-kubernetes-operator-log-collector)
+2. [`auth`](#grant-aerospike-kubernetes-cluster-rbac)
 
 ### Building and quick start
 
-#### Building akoctl binary
+#### Building akoctl binary for local testing
 ```sh
 make build
 ```
 
-#### Collect cluster info
-```sh
- ./bin/akoctl collectinfo -n aerospike,olm --path ~/abc/
-```
-
-#### Install via krew plugin manager
+#### Install via Krew plugin manager
 [Krew](https://krew.sigs.k8s.io) is the plugin manager for kubectl command-line tool. Here `akoctl` has been added as a custom plugin to krew.
 
-##### Install krew 
+##### Install Krew
 To install krew on any platform, follow [this](https://krew.sigs.k8s.io/docs/user-guide/setup/install/).
 ##### Install akoctl
 ```sh
@@ -56,7 +38,24 @@ Installed plugin: akoctl
  | Documentation:
  | 	https://github.com/aerospike/aerospike-kubernetes-operator-ctl
 /
+```
 
+## Aerospike Kubernetes Operator Log Collector
+
+### Overview
+
+`collectinfo` command collects all the required info from kubernetes cluster, which are available at the time of command being executed.
+
+Flag associated with this command:
+* **path** - (type string) Absolute path to save output tar file.
+
+### Permission required
+* Current user should have the list and get permission for all the objects collected by the command.
+* If **cluster-scope** flag is set, along with permissions mentioned above, user should have list and get permission for cluster-scoped resources like(nodes and storageclasses).
+
+#### Collect cluster info using local binary
+```sh
+ ./bin/akoctl collectinfo -n aerospike,olm --path ~/abc/
 ```
 
 #### Collect cluster info using krew
@@ -111,3 +110,39 @@ akoctl_collectinfo
         │   ├── <sts name>.yaml
 
 ```
+
+## Grant Aerospike Kubernetes Cluster RBAC
+
+### Overview
+
+`auth` command creates/deletes RBAC resources for Aerospike cluster for the given namespaces.
+It creates/deletes ServiceAccount, RoleBinding or ClusterRoleBinding as per given scope of operation.
+
+There are 2 sub-commands associated with this command:
+* `create` - It creates/updates RBAC resources for the given namespaces.
+* `delete` - It deletes RBAC resources for the given namespaces.
+
+If `cluster-scope` is set (Default true), auth command grants cluster level RBAC whereas in case of `cluster-scope` false, it grants namespace level RBAC.
+
+### Permission required
+* Current user should have the CREATE, GET, UPDATE and DELETE permission for ServiceAccount and RoleBinding.
+* If **cluster-scope** flag is set, user should have the CREATE, GET, UPDATE and DELETE permission for ServiceAccount and ClusterRoleBinding.
+
+#### Collect cluster info
+```sh
+ ./bin/akoctl auth create -n aerospike,olm 
+ ./bin/akoctl auth delete -n aerospike,olm 
+```
+
+#### Collect cluster info using krew
+```sh
+ kubectl akoctl auth create -n aerospike,olm
+ kubectl akoctl auth delete -n aerospike,olm
+```
+
+## Global Flags:
+There are certain global flags associated with akoctl:
+* **all-namespaces** - (shorthand -A, type bool) Specify all namespaces present in cluster.
+* **namespaces** - (shorthand -n, type string) Comma separated list of namespaces to perform operation in.
+* **kubeconfig** - (type string) Absolute path to the kubeconfig file.
+* **cluster-scope** - (type bool) Permission to work in cluster scoped mode (operate on cluster scoped resources like ClusterRoleBinding). Default true.

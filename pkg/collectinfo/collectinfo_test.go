@@ -22,6 +22,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aerospike/aerospike-kubernetes-operator-ctl/pkg/collectinfo"
+	"github.com/aerospike/aerospike-kubernetes-operator-ctl/pkg/configuration"
+	"github.com/aerospike/aerospike-kubernetes-operator-ctl/pkg/internal"
 )
 
 const (
@@ -41,25 +43,25 @@ var (
 
 // key format: RootOutputDir/<k8s-cluster or k8s-namespaces>/ns/<objectKIND>/<objectName>
 var filesList = map[string]bool{
-	filepath.Join(clusterScopeDir, collectinfo.KindDirNames[collectinfo.NodeKind],
+	filepath.Join(clusterScopeDir, collectinfo.KindDirNames[internal.NodeKind],
 		nodeName+collectinfo.FileSuffix): false,
-	filepath.Join(clusterScopeDir, collectinfo.KindDirNames[collectinfo.SCKind],
+	filepath.Join(clusterScopeDir, collectinfo.KindDirNames[internal.SCKind],
 		scName+collectinfo.FileSuffix): false,
-	filepath.Join(clusterScopeDir, collectinfo.KindDirNames[collectinfo.MutatingWebhookKind],
+	filepath.Join(clusterScopeDir, collectinfo.KindDirNames[internal.MutatingWebhookKind],
 		collectinfo.MutatingWebhookName+collectinfo.FileSuffix): false,
-	filepath.Join(clusterScopeDir, collectinfo.KindDirNames[collectinfo.ValidatingWebhookKind],
+	filepath.Join(clusterScopeDir, collectinfo.KindDirNames[internal.ValidatingWebhookKind],
 		collectinfo.ValidatingWebhookName+collectinfo.FileSuffix): false,
-	filepath.Join(namespaceScopeDir, namespace, collectinfo.KindDirNames[collectinfo.PVCKind],
+	filepath.Join(namespaceScopeDir, namespace, collectinfo.KindDirNames[internal.PVCKind],
 		pvcName+collectinfo.FileSuffix): false,
-	filepath.Join(namespaceScopeDir, namespace, collectinfo.KindDirNames[collectinfo.STSKind],
+	filepath.Join(namespaceScopeDir, namespace, collectinfo.KindDirNames[internal.STSKind],
 		stsName+collectinfo.FileSuffix): false,
-	filepath.Join(namespaceScopeDir, namespace, collectinfo.KindDirNames[collectinfo.PodKind], podName, "logs",
+	filepath.Join(namespaceScopeDir, namespace, collectinfo.KindDirNames[internal.PodKind], podName, "logs",
 		containerName+".log"): false,
-	filepath.Join(namespaceScopeDir, namespace, collectinfo.KindDirNames[collectinfo.PodKind], podName, "logs", "previous",
+	filepath.Join(namespaceScopeDir, namespace, collectinfo.KindDirNames[internal.PodKind], podName, "logs", "previous",
 		containerName+".log"): false,
-	filepath.Join(namespaceScopeDir, namespace, collectinfo.KindDirNames[collectinfo.PodKind], podName,
+	filepath.Join(namespaceScopeDir, namespace, collectinfo.KindDirNames[internal.PodKind], podName,
 		podName+collectinfo.FileSuffix): false,
-	filepath.Join(namespaceScopeDir, namespace, collectinfo.KindDirNames[collectinfo.AerospikeClusterKind],
+	filepath.Join(namespaceScopeDir, namespace, collectinfo.KindDirNames[internal.AerospikeClusterKind],
 		aerospikeClusterName+collectinfo.FileSuffix): false,
 	filepath.Join(collectinfo.RootOutputDir,
 		collectinfo.LogFileName): false,
@@ -154,14 +156,18 @@ var _ = Describe("collectInfo", func() {
 			err = k8sClient.Create(context.TODO(), u)
 			Expect(err).ToNot(HaveOccurred())
 
-			var nslist = []string{namespace}
-
 			err = os.MkdirAll(collectinfo.RootOutputDir, os.ModePerm)
 			Expect(err).ToNot(HaveOccurred())
 
-			logger := collectinfo.InitializeLogger(filepath.Join(collectinfo.RootOutputDir, collectinfo.LogFileName))
+			params, err := configuration.NewParams(testCtx, []string{namespace}, false, true)
+			Expect(err).ToNot(HaveOccurred())
 
-			err = collectinfo.CollectInfo(logger, k8sClient, k8sClientset, nslist, "", false, true)
+			params.K8sClient = k8sClient
+			params.ClientSet = k8sClientSet
+			params.Logger = collectinfo.AttachFileLogger(params.Logger,
+				filepath.Join(collectinfo.RootOutputDir, collectinfo.LogFileName))
+
+			err = collectinfo.CollectInfo(testCtx, params, "")
 			Expect(err).ToNot(HaveOccurred())
 
 			err = validateAndDeleteTar(collectinfo.TarName, filesList)

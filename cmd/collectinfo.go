@@ -16,17 +16,16 @@ limitations under the License.
 package cmd
 
 import (
+	"context"
+
 	"github.com/spf13/cobra"
 
 	"github.com/aerospike/aerospike-kubernetes-operator-ctl/pkg/collectinfo"
+	"github.com/aerospike/aerospike-kubernetes-operator-ctl/pkg/configuration"
 )
 
 var (
-	kubeconfig    string
-	namespaces    []string
-	path          string
-	allNamespaces bool
-	clusterScope  bool
+	path string
 )
 
 // collectinfoCmd represents the collectinfo command
@@ -39,21 +38,19 @@ var collectinfoCmd = &cobra.Command{
 * containers logs.
 * events logs.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return collectinfo.RunCollectInfo(namespaces, path, allNamespaces, clusterScope)
+		ctx := context.TODO()
+		params, err := configuration.NewParams(ctx, namespaces, allNamespaces, clusterScope)
+		if err != nil {
+			return err
+		}
+
+		return collectinfo.RunCollectInfo(ctx, params, path)
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(collectinfoCmd)
 
-	collectinfoCmd.Flags().StringVar(&kubeconfig, "kubeconfig", "",
-		"Absolute path to the kubeconfig file")
-	collectinfoCmd.Flags().StringSliceVarP(&namespaces, "namespaces", "n", namespaces,
-		"Namespaces for which logs to be collected")
 	collectinfoCmd.Flags().StringVar(&path, "path", "",
 		"Absolute path where generated tar file will be saved")
-	collectinfoCmd.Flags().BoolVarP(&allNamespaces, "all-namespaces", "A", false,
-		"Collect info from all namespaces")
-	collectinfoCmd.Flags().BoolVar(&clusterScope, "cluster-scope", true,
-		"Permission to collect cluster scoped objects info")
 }
