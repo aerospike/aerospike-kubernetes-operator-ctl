@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -352,7 +353,7 @@ func compress(src string, buf io.Writer) error {
 }
 
 func appendOneEvent(data *[]byte, e *corev1.Event) {
-	event := fmt.Sprintf("%s\t%s\t%s\t%s/%s\t%v\n", getInterval(e), e.Type, e.Reason, e.InvolvedObject.Kind,
+	event := fmt.Sprintf("%s\t\t\t%s\t\t%s\t\t\t%s/%s\t\t\t%v\n", getInterval(e), e.Type, e.Reason, e.InvolvedObject.Kind,
 		e.InvolvedObject.Name, strings.TrimSpace(e.Message))
 	*data = append(*data, event...)
 }
@@ -388,7 +389,12 @@ func captureEvents(ctx context.Context, logger *zap.Logger, clientSet *kubernete
 		return nil
 	}
 
-	data := []byte("LAST SEEN\tTYPE\tREASON\tOBJECT\tMESSAGE\n")
+	// Sort the events by `.metadata.creationTimestamp`
+	sort.SliceStable(el.Items, func(i, j int) bool {
+		return el.Items[i].GetCreationTimestamp().Time.Before(el.Items[j].GetCreationTimestamp().Time)
+	})
+
+	data := []byte("LAST SEEN\t\tTYPE\t\tREASON\t\t\tOBJECT\t\t\tMESSAGE\n")
 	for idx := range el.Items {
 		appendOneEvent(&data, &el.Items[idx])
 	}
