@@ -35,7 +35,7 @@ var (
 
 func TestPkg(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Pkg Suite")
+	RunSpecs(t, "CollectInfo Suite")
 }
 
 var _ = BeforeSuite(
@@ -72,8 +72,7 @@ var _ = BeforeSuite(
 		k8sClientSet = kubernetes.NewForConfigOrDie(cfg)
 		Expect(k8sClient).NotTo(BeNil())
 
-		ctx := goctx.TODO()
-		err = createNamespace(k8sClient, ctx, namespace)
+		err = createNamespace(testCtx, k8sClient, namespace)
 		Expect(err).NotTo(HaveOccurred())
 	})
 
@@ -87,8 +86,7 @@ var _ = AfterSuite(
 )
 
 func createNamespace(
-	k8sClient client.Client, ctx goctx.Context, name string,
-) error {
+	ctx goctx.Context, k8sClient client.Client, name string) error {
 	ns := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,

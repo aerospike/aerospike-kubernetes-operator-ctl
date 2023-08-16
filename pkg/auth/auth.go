@@ -37,13 +37,22 @@ func Create(ctx context.Context, params *configuration.Parameters) error {
 		}
 
 		// Create SA and check namespace existence
-		if err := params.K8sClient.Create(ctx, sa); err != nil && errors.IsNotFound(err) {
-			params.Logger.Error(fmt.Sprintf("namespace: %s not found, skipping RBAC resources", ns))
-			continue
-		}
+		if err := params.K8sClient.Create(ctx, sa); err != nil {
+			if errors.IsNotFound(err) {
+				params.Logger.Error(fmt.Sprintf("namespace: %s not found, skipping RBAC resources", ns))
+				continue
+			}
 
-		params.Logger.Info("Created resource", zap.String("kind", internal.ServiceAccountKind),
-			zap.String("name", ServiceAccountName), zap.String("namespace", ns))
+			if !errors.IsAlreadyExists(err) {
+				return err
+			}
+
+			params.Logger.Info("Resource already exists, skipping", zap.String("kind", internal.ServiceAccountKind),
+				zap.String("name", ServiceAccountName), zap.String("namespace", ns))
+		} else {
+			params.Logger.Info("Created resource", zap.String("kind", internal.ServiceAccountKind),
+				zap.String("name", ServiceAccountName), zap.String("namespace", ns))
+		}
 
 		sub := map[string]interface{}{
 			"kind":      internal.ServiceAccountKind,
@@ -205,7 +214,7 @@ func Delete(ctx context.Context, params *configuration.Parameters) error {
 	if len(filtered) == 0 {
 		deleteResource(
 			ctx, params,
-			v1.SchemeGroupVersion.WithKind(internal.ClusterRoleKind),
+			v1.SchemeGroupVersion.WithKind(internal.ClusterRoleBindingKind),
 			types.NamespacedName{Name: ClusterRoleBindingName})
 
 		return nil
