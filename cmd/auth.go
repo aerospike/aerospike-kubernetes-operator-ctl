@@ -18,9 +18,10 @@ package cmd
 import (
 	"context"
 
+	"github.com/spf13/cobra"
+
 	"github.com/aerospike/aerospike-kubernetes-operator-ctl/pkg/auth"
 	"github.com/aerospike/aerospike-kubernetes-operator-ctl/pkg/configuration"
-	"github.com/spf13/cobra"
 )
 
 // authCmd represents the auth command
