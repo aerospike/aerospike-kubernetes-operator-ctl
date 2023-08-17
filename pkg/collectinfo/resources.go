@@ -13,6 +13,7 @@ const (
 	PVCKind               = "PersistentVolumeClaim"
 	PVKind                = "PersistentVolume"
 	STSKind               = "StatefulSet"
+	DeployKind            = "Deployment"
 	SCKind                = "StorageClass"
 	AerospikeClusterKind  = "AerospikeCluster"
 	PodKind               = "Pod"
@@ -28,6 +29,7 @@ var (
 		PVCKind:               "persistentvolumeclaims",
 		PVKind:                "persistentvolumes",
 		STSKind:               "statefulsets",
+		DeployKind:            "deployments",
 		SCKind:                "storageclasses",
 		AerospikeClusterKind:  "aerospikeclusters",
 		PodKind:               "pods",
@@ -37,14 +39,16 @@ var (
 		ServiceKind:           "services",
 	}
 	gvkListNSScoped = []schema.GroupVersionKind{
-		corev1.SchemeGroupVersion.WithKind(PVCKind),
-		appsv1.SchemeGroupVersion.WithKind(STSKind),
-		corev1.SchemeGroupVersion.WithKind(ServiceKind),
 		{
 			Group:   "asdb.aerospike.com",
-			Version: "v1beta1",
+			Version: "v1",
 			Kind:    AerospikeClusterKind,
 		},
+		appsv1.SchemeGroupVersion.WithKind(STSKind),
+		appsv1.SchemeGroupVersion.WithKind(DeployKind),
+		corev1.SchemeGroupVersion.WithKind(PodKind),
+		corev1.SchemeGroupVersion.WithKind(PVCKind),
+		corev1.SchemeGroupVersion.WithKind(ServiceKind),
 	}
 	gvkListClusterScoped = []schema.GroupVersionKind{
 		corev1.SchemeGroupVersion.WithKind(NodeKind),

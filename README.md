@@ -96,10 +96,12 @@ akoctl_collectinfo
 │       ├── <validatingwebhook name>.yaml
 │   └── persistentvolumes
 │       ├── <persistentvolume name>.yaml
+│   └── summary
+│       ├── summary.txt
 └── k8s_namespaces
     └── aerospike
         ├── aerospikeclusters
-        ├── events
+        │   ├── <aerospikecluster name>.yaml
         ├── persistentvolumeclaims
         │   ├── <pvc name>.yaml
         ├── pods
@@ -111,7 +113,13 @@ akoctl_collectinfo
         │   │       └── <container name>.log
         └── statefulsets
         │   ├── <sts name>.yaml
+        └── deployments
+        │   ├── <deployment name>.yaml
         └── services
         │   ├── <service name>.yaml
+        └── summary
+        │   ├── summary.txt
+        │   ├── events.txt
+        └──────────────────────────
 
 ```
