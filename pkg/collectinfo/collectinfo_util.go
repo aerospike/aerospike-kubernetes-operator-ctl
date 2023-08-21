@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -17,6 +18,7 @@ import (
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -188,8 +190,19 @@ func captureObject(logger *zap.Logger, k8sClient client.Client, gvk schema.Group
 	u.SetGroupVersionKind(gvk)
 
 	if err := k8sClient.List(context.TODO(), u, listOps); err != nil {
-		logger.Error("Not able to list ", zap.String("object", gvk.Kind), zap.Error(err))
-		return err
+		if gvk.Kind == AerospikeClusterKind && errors.Is(err, &meta.NoKindMatchError{}) {
+			gvk.Version = "v1beta1"
+			u.SetGroupVersionKind(gvk)
+
+			if listErr := k8sClient.List(context.TODO(), u, listOps); listErr != nil {
+				logger.Error("Not able to list ",
+					zap.String("object", gvk.Kind), zap.String("version", gvk.Version), zap.Error(listErr))
+				return err
+			}
+		} else {
+			logger.Error("Not able to list ", zap.String("object", gvk.Kind), zap.Error(err))
+			return err
+		}
 	}
 
 	objOutputDir := filepath.Join(rootOutputPath, KindDirNames[gvk.Kind])

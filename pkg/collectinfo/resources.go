@@ -44,11 +44,6 @@ var (
 			Version: "v1",
 			Kind:    AerospikeClusterKind,
 		},
-		{
-			Group:   "asdb.aerospike.com",
-			Version: "v1beta1",
-			Kind:    AerospikeClusterKind,
-		},
 		appsv1.SchemeGroupVersion.WithKind(STSKind),
 		appsv1.SchemeGroupVersion.WithKind(DeployKind),
 		corev1.SchemeGroupVersion.WithKind(PodKind),
