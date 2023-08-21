@@ -44,6 +44,11 @@ var (
 			Version: "v1",
 			Kind:    AerospikeClusterKind,
 		},
+		{
+			Group:   "asdb.aerospike.com",
+			Version: "v1beta1",
+			Kind:    AerospikeClusterKind,
+		},
 		appsv1.SchemeGroupVersion.WithKind(STSKind),
 		appsv1.SchemeGroupVersion.WithKind(DeployKind),
 		corev1.SchemeGroupVersion.WithKind(PodKind),
@@ -54,8 +59,6 @@ var (
 		corev1.SchemeGroupVersion.WithKind(NodeKind),
 		v1.SchemeGroupVersion.WithKind(SCKind),
 		corev1.SchemeGroupVersion.WithKind(PVKind),
-	}
-	gvkListWebhooks = []schema.GroupVersionKind{
 		admissionv1.SchemeGroupVersion.WithKind(MutatingWebhookKind),
 		admissionv1.SchemeGroupVersion.WithKind(ValidatingWebhookKind),
 	}

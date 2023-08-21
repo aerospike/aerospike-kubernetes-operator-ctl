@@ -27,7 +27,9 @@ import (
 const (
 	nodeName             = "test-node"
 	scName               = "test-sc"
+	serviceName          = "test-service"
 	pvcName              = "test-pvc"
+	pvName               = "test-pv"
 	stsName              = "test-sts"
 	deployName           = "test-deploy"
 	podName              = "test-pod"
@@ -46,12 +48,14 @@ var filesList = map[string]bool{
 		nodeName+collectinfo.FileSuffix): false,
 	filepath.Join(clusterScopeDir, collectinfo.KindDirNames[collectinfo.SCKind],
 		scName+collectinfo.FileSuffix): false,
+	filepath.Join(clusterScopeDir, collectinfo.KindDirNames[collectinfo.PVKind],
+		pvName+collectinfo.FileSuffix): false,
 	filepath.Join(clusterScopeDir, collectinfo.KindDirNames[collectinfo.MutatingWebhookKind],
 		collectinfo.MutatingWebhookName+collectinfo.FileSuffix): false,
 	filepath.Join(clusterScopeDir, collectinfo.KindDirNames[collectinfo.ValidatingWebhookKind],
 		collectinfo.ValidatingWebhookName+collectinfo.FileSuffix): false,
-	filepath.Join(clusterScopeDir, "summary",
-		"summary.txt"): false,
+	filepath.Join(clusterScopeDir, collectinfo.SummaryDir,
+		collectinfo.SummaryFile): false,
 	filepath.Join(namespaceScopeDir, namespace, collectinfo.KindDirNames[collectinfo.PVCKind],
 		pvcName+collectinfo.FileSuffix): false,
 	filepath.Join(namespaceScopeDir, namespace, collectinfo.KindDirNames[collectinfo.STSKind],
@@ -64,10 +68,12 @@ var filesList = map[string]bool{
 		containerName+".log"): false,
 	filepath.Join(namespaceScopeDir, namespace, collectinfo.KindDirNames[collectinfo.PodKind], podName,
 		podName+collectinfo.FileSuffix): false,
+	filepath.Join(namespaceScopeDir, namespace, collectinfo.KindDirNames[collectinfo.ServiceKind],
+		serviceName+collectinfo.FileSuffix): false,
 	filepath.Join(namespaceScopeDir, namespace, collectinfo.KindDirNames[collectinfo.AerospikeClusterKind],
 		aerospikeClusterName+collectinfo.FileSuffix): false,
-	filepath.Join(namespaceScopeDir, namespace, "summary",
-		"summary.txt"): false,
+	filepath.Join(namespaceScopeDir, namespace, collectinfo.SummaryDir,
+		collectinfo.SummaryFile): false,
 	filepath.Join(collectinfo.RootOutputDir,
 		collectinfo.LogFileName): false,
 }
@@ -91,6 +97,17 @@ var _ = Describe("collectInfo", func() {
 			err = k8sClient.Create(context.TODO(), sc, createOption)
 			Expect(err).ToNot(HaveOccurred())
 
+			service := &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{Name: serviceName, Namespace: namespace},
+				Spec: corev1.ServiceSpec{
+					Ports: []corev1.ServicePort{
+						{Port: 3000},
+					},
+				},
+			}
+			err = k8sClient.Create(context.TODO(), service, createOption)
+			Expect(err).ToNot(HaveOccurred())
+
 			pvc := &corev1.PersistentVolumeClaim{
 				ObjectMeta: metav1.ObjectMeta{Name: pvcName, Namespace: namespace},
 				Spec: corev1.PersistentVolumeClaimSpec{
@@ -100,9 +117,34 @@ var _ = Describe("collectInfo", func() {
 							corev1.ResourceStorage: resource.MustParse("1Gi"),
 						},
 					},
+					VolumeName: pvName,
 				},
 			}
 			err = k8sClient.Create(context.TODO(), pvc, createOption)
+			Expect(err).ToNot(HaveOccurred())
+
+			volumeMode := corev1.PersistentVolumeBlock
+			pv := &corev1.PersistentVolume{
+				ObjectMeta: metav1.ObjectMeta{Name: pvName},
+				Spec: corev1.PersistentVolumeSpec{
+					AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+					Capacity: map[corev1.ResourceName]resource.Quantity{
+						"storage": resource.MustParse("1Gi"),
+					},
+					ClaimRef: &corev1.ObjectReference{
+						Name:      pvcName,
+						Namespace: namespace,
+					},
+					StorageClassName: "",
+					VolumeMode:       &volumeMode,
+					PersistentVolumeSource: corev1.PersistentVolumeSource{
+						HostPath: &corev1.HostPathVolumeSource{
+							Path: "/opt/volume/ngnix",
+						},
+					},
+				},
+			}
+			err = k8sClient.Create(context.TODO(), pv, createOption)
 			Expect(err).ToNot(HaveOccurred())
 
 			sts := &appsv1.StatefulSet{

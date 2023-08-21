@@ -68,7 +68,7 @@ Installed plugin: akoctl
 
 This command collects the following data from the specified namespaces:
 
-* Pods, StatefulSets, PersistentVolumeClaims, AerospikeCluster objects .
+* Pods, StatefulSets, Deployments, PersistentVolumeClaims, PersistentVolumes, Services, AerospikeCluster objects .
 * Container logs.
 * Event logs.
 
