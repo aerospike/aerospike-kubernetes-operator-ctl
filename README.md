@@ -15,9 +15,10 @@ There are certain flags associated with command:
 * **path** - (type string) Absolute path to save output tar file.
 * **cluster-scope** - (type bool) Permission to collect cluster scoped objects info. Default true.
 
-### Permission required
+### Requirements
 * Current user should have the list and get permission for all the objects collected by the command.
-* If **cluster-scope** flag is set, along with permissions mentioned above, user should have list and get permission for cluster-scoped resources like(nodes and storageclasses).
+* If **cluster-scope** flag is set, along with permission mentioned above, user should have list and get permission for cluster-scoped resources like(nodes and storageclasses).
+* **Kubectl** binary should have installed and available in **PATH** environment variable.
 
 ### Building and quick start
 

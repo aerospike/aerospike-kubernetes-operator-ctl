@@ -44,6 +44,7 @@ const (
 	SummaryDir              = "summary"
 	SummaryFile             = "summary.txt"
 	EventsFile              = "events.txt"
+	kubectlCMD              = "kubectl"
 )
 
 var (
@@ -248,19 +249,25 @@ func captureObject(logger *zap.Logger, k8sClient client.Client, gvk schema.Group
 }
 
 func captureSummary(logger *zap.Logger, ns, rootOutputPath string) error {
+	_, err := exec.LookPath(kubectlCMD)
+	if err != nil {
+		logger.Error("not able to collect cluster summary", zap.Error(err))
+		return nil
+	}
+
 	cmdMap := make(map[string]*exec.Cmd)
 
 	if ns != "" {
 		for _, gvk := range gvkListNSScoped {
-			cmd := exec.Command("kubectl", "get", gvk.Kind, "-n", ns) //nolint:gosec // kind is constant
+			cmd := exec.Command(kubectlCMD, "get", gvk.Kind, "-n", ns) //nolint:gosec // kind is constant
 			cmdMap[gvk.Kind] = cmd
 		}
 
-		cmd := exec.Command("kubectl", "get", EventKind, "-n", ns, "--sort-by=.metadata.creationTimestamp")
+		cmd := exec.Command(kubectlCMD, "get", EventKind, "-n", ns, "--sort-by=.metadata.creationTimestamp")
 		cmdMap[EventKind] = cmd
 	} else {
 		for _, gvk := range gvkListClusterScoped {
-			cmd := exec.Command("kubectl", "get", gvk.Kind) //nolint:gosec // kind is constant
+			cmd := exec.Command(kubectlCMD, "get", gvk.Kind) //nolint:gosec // kind is constant
 			cmdMap[gvk.Kind] = cmd
 		}
 	}
