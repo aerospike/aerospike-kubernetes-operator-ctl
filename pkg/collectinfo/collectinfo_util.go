@@ -30,7 +30,6 @@ import (
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -41,6 +40,7 @@ import (
 	runtimeresource "k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/yaml"
 
 	"github.com/aerospike/aerospike-kubernetes-operator-ctl/pkg/configuration"
 	"github.com/aerospike/aerospike-kubernetes-operator-ctl/pkg/internal"
