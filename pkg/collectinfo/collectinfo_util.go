@@ -217,8 +217,10 @@ func captureObject(logger *zap.Logger, k8sClient client.Client, gvk schema.Group
 		switch gvk.Kind {
 		case PVCKind:
 			obj := u.Items[idx].Object
-			volumeName := obj["spec"].(map[string]interface{})["volumeName"].(string)
-			pvcNameSet.Insert(volumeName)
+			if obj["spec"].(map[string]interface{})["volumeName"] != nil {
+				volumeName := obj["spec"].(map[string]interface{})["volumeName"].(string)
+				pvcNameSet.Insert(volumeName)
+			}
 		case PVKind:
 			if !pvcNameSet.Has(u.Items[idx].GetName()) {
 				continue
@@ -328,6 +330,7 @@ func captureSummary(logger *zap.Logger, ns, rootOutputPath string) error {
 func filterPersistentVolumes(out []byte) (finalOut []byte) {
 	outList := bytes.Split(out, []byte("\n"))
 
+	// Inserting "NAME" string to capture headers of kubectl command output
 	pvcNameSet.Insert("NAME")
 
 	for _, o := range outList {

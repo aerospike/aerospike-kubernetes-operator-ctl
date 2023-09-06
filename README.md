@@ -18,7 +18,7 @@ There are certain flags associated with command:
 ### Requirements
 * Current user should have the list and get permission for all the objects collected by the command.
 * If **cluster-scope** flag is set, along with permission mentioned above, user should have list and get permission for cluster-scoped resources like(nodes and storageclasses).
-* **Kubectl** binary should have installed and available in **PATH** environment variable.
+* **Kubectl** binary should be available in **PATH** environment variable.
 
 ### Building and quick start
 
