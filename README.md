@@ -5,7 +5,6 @@ This is a command line tool for Aerospike Kubernetes Operator. It provides multi
 Available sub-commands:
 1. [`collectinfo`](#aerospike-kubernetes-operator-log-collector)
 2. [`auth`](#grant-aerospike-kubernetes-cluster-rbac)
-
 ### Building and quick start
 
 #### Building akoctl binary for local testing
@@ -49,9 +48,10 @@ Installed plugin: akoctl
 Flag associated with this command:
 * **path** - (type string) Absolute path to save output tar file.
 
-### Permission required
+### Requirements
 * Current user should have the list and get permission for all the objects collected by the command.
 * If **cluster-scope** flag is set, along with permissions mentioned above, user should have list and get permission for cluster-scoped resources like(nodes and storageclasses).
+* * **Kubectl** binary should be available in **PATH** environment variable.
 
 #### Collect cluster info using local binary
 ```sh
@@ -67,7 +67,7 @@ Flag associated with this command:
 
 This command collects the following data from the specified namespaces:
 
-* Pods, StatefulSets, PersistentVolumeClaims, AerospikeCluster objects .
+* Pods, StatefulSets, Deployments, PersistentVolumeClaims, PersistentVolumes, Services, AerospikeCluster objects .
 * Container logs.
 * Event logs.
 
@@ -93,10 +93,14 @@ akoctl_collectinfo
 │       ├── <mutatingwebhook name>.yaml
 │   └── validatingwebhookconfigurations
 │       ├── <validatingwebhook name>.yaml
+│   └── persistentvolumes
+│       ├── <persistentvolume name>.yaml
+│   └── summary
+│       ├── summary.txt
 └── k8s_namespaces
     └── aerospike
         ├── aerospikeclusters
-        ├── events
+        │   ├── <aerospikecluster name>.yaml
         ├── persistentvolumeclaims
         │   ├── <pvc name>.yaml
         ├── pods
@@ -108,6 +112,14 @@ akoctl_collectinfo
         │   │       └── <container name>.log
         └── statefulsets
         │   ├── <sts name>.yaml
+        └── deployments
+        │   ├── <deployment name>.yaml
+        └── services
+        │   ├── <service name>.yaml
+        └── summary
+        │   ├── summary.txt
+        │   ├── events.txt
+        └──────────────────────────
 
 ```
 

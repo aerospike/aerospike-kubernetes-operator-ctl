@@ -20,24 +20,24 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
-	"sort"
 	"strings"
 	"time"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/util/duration"
-	runtimeresource "k8s.io/cli-runtime/pkg/resource"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
@@ -56,11 +56,16 @@ const (
 	ValidatingWebhookPrefix = "vaerospikecluster.kb.io"
 	MutatingWebhookName     = "aerospike-operator-mutating-webhook-configuration"
 	ValidatingWebhookName   = "aerospike-operator-validating-webhook-configuration"
+	SummaryDir              = "summary"
+	SummaryFile             = "summary.txt"
+	EventsFile              = "events.txt"
+	kubectlCMD              = "kubectl"
 )
 
 var (
 	currentTime = time.Now().Format("20060102_150405")
 	TarName     = RootOutputDir + "_" + currentTime + ".tar.gzip"
+	pvcNameSet  = sets.Set[string]{}
 )
 
 func RunCollectInfo(ctx context.Context, params *configuration.Parameters, path string) error {
@@ -106,18 +111,20 @@ func CollectInfo(ctx context.Context, params *configuration.Parameters, path str
 			return err
 		}
 
-		if err := capturePodLogs(ctx, params.Logger, params.ClientSet, ns, objOutputDir); err != nil {
-			return err
-		}
-
-		if err := captureEvents(ctx, params.Logger, params.ClientSet, ns, objOutputDir); err != nil {
-			return err
-		}
-
 		for _, gvk := range gvkListNSScoped {
-			if err := captureObject(params.Logger, params.K8sClient, gvk, ns, objOutputDir); err != nil {
-				return err
+			if gvk.Kind == internal.PodKind {
+				if err := capturePodLogs(ctx, params.Logger, params.ClientSet, ns, objOutputDir); err != nil {
+					return err
+				}
+			} else {
+				if err := captureObject(params.Logger, params.K8sClient, gvk, ns, objOutputDir); err != nil {
+					return err
+				}
 			}
+		}
+
+		if err := captureSummary(params.Logger, ns, objOutputDir); err != nil {
+			return err
 		}
 	}
 
@@ -135,10 +142,8 @@ func CollectInfo(ctx context.Context, params *configuration.Parameters, path str
 			}
 		}
 
-		for _, webhooksGVK := range gvkListWebhooks {
-			if err := captureWebhookConfigurations(params.Logger, params.K8sClient, webhooksGVK, objOutputDir); err != nil {
-				return err
-			}
+		if err := captureSummary(params.Logger, "", objOutputDir); err != nil {
+			return err
 		}
 	}
 
@@ -155,8 +160,19 @@ func captureObject(logger *zap.Logger, k8sClient client.Client, gvk schema.Group
 	u.SetGroupVersionKind(gvk)
 
 	if err := k8sClient.List(context.TODO(), u, listOps); err != nil {
-		logger.Error("Not able to list ", zap.String("kind", gvk.Kind), zap.Error(err))
-		return err
+		if gvk.Kind == internal.AerospikeClusterKind && errors.Is(err, &meta.NoKindMatchError{}) {
+			gvk.Version = "v1beta1"
+			u.SetGroupVersionKind(gvk)
+
+			if listErr := k8sClient.List(context.TODO(), u, listOps); listErr != nil {
+				logger.Error("Not able to list ",
+					zap.String("kind", gvk.Kind), zap.String("version", gvk.Version), zap.Error(listErr))
+				return err
+			}
+		} else {
+			logger.Error("Not able to list ", zap.String("kind", gvk.Kind), zap.Error(err))
+			return err
+		}
 	}
 
 	objOutputDir := filepath.Join(rootOutputPath, KindDirNames[gvk.Kind])
@@ -170,16 +186,158 @@ func captureObject(logger *zap.Logger, k8sClient client.Client, gvk schema.Group
 		return nil
 	}
 
+	count := 0
+
 	for idx := range u.Items {
+		switch gvk.Kind {
+		case internal.PVCKind:
+			obj := u.Items[idx].Object
+			if obj["spec"].(map[string]interface{})["volumeName"] != nil {
+				volumeName := obj["spec"].(map[string]interface{})["volumeName"].(string)
+				pvcNameSet.Insert(volumeName)
+			}
+		case internal.PVKind:
+			if !pvcNameSet.Has(u.Items[idx].GetName()) {
+				continue
+			}
+		case internal.ValidatingWebhookKind:
+			name := u.Items[idx].GetName()
+			if !(strings.HasPrefix(name, ValidatingWebhookPrefix) || name == ValidatingWebhookName) {
+				continue
+			}
+		case internal.MutatingWebhookKind:
+			name := u.Items[idx].GetName()
+			if !(strings.HasPrefix(name, MutatingWebhookPrefix) || name == MutatingWebhookName) {
+				continue
+			}
+		}
+
 		if err := serializeAndWrite(u.Items[idx], objOutputDir); err != nil {
+			return err
+		}
+
+		count++
+	}
+
+	logger.Info("Successfully saved ", zap.String("kind", gvk.Kind),
+		zap.Int("number of objects", count), zap.String("namespace", ns))
+
+	return nil
+}
+
+func captureSummary(logger *zap.Logger, ns, rootOutputPath string) error {
+	_, err := exec.LookPath(kubectlCMD)
+	if err != nil {
+		logger.Error("not able to collect cluster summary", zap.Error(err))
+		return nil
+	}
+
+	cmdMap := make(map[string]*exec.Cmd)
+
+	if ns != "" {
+		for _, gvk := range gvkListNSScoped {
+			cmd := exec.Command(kubectlCMD, "get", gvk.Kind, "-n", ns) //nolint:gosec // kind is constant
+			cmdMap[gvk.Kind] = cmd
+		}
+
+		//nolint:gosec // kind is constant
+		cmd := exec.Command(kubectlCMD, "get", internal.EventKind, "-n", ns, "--sort-by=.metadata.creationTimestamp")
+		cmdMap[internal.EventKind] = cmd
+	} else {
+		for _, gvk := range gvkListClusterScoped {
+			cmd := exec.Command(kubectlCMD, "get", gvk.Kind) //nolint:gosec // kind is constant
+			cmdMap[gvk.Kind] = cmd
+		}
+	}
+
+	var (
+		finalSummary []byte
+		events       []byte
+	)
+
+	for kind, cmd := range cmdMap {
+		divider := fmt.Sprintf("\n%s\n%s%s\n%s\n",
+			strings.Repeat("-", 100), strings.Repeat(" ", 50-len(kind)/2), kind, strings.Repeat("-", 100))
+
+		out, err := cmd.Output()
+		if err != nil {
+			logger.Error("could not run command: ", zap.Error(err))
+			continue
+		}
+
+		switch kind {
+		case internal.PVKind:
+			out = filterPersistentVolumes(out)
+		case internal.MutatingWebhookKind:
+			out = filterWebhooks(out)
+		case internal.ValidatingWebhookKind:
+			out = filterWebhooks(out)
+		case internal.EventKind:
+			events = out
+			continue
+		}
+
+		if len(out) > 0 {
+			finalSummary = append(finalSummary, []byte(divider)...)
+			finalSummary = append(finalSummary, out...)
+		}
+	}
+
+	objOutputDir := filepath.Join(rootOutputPath, SummaryDir)
+	if err := os.MkdirAll(objOutputDir, os.ModePerm); err != nil {
+		return err
+	}
+
+	if err := populateScraperDir(finalSummary, filepath.Join(objOutputDir, SummaryFile)); err != nil {
+		return err
+	}
+
+	if len(events) > 0 {
+		if err := populateScraperDir(events, filepath.Join(objOutputDir, EventsFile)); err != nil {
 			return err
 		}
 	}
 
-	logger.Info("Successfully saved ", zap.String("kind", gvk.Kind),
-		zap.Int("number of objects", len(u.Items)), zap.String("namespace", ns))
+	logger.Info("Successfully saved summary", zap.String("namespace", ns))
 
 	return nil
+}
+
+func filterPersistentVolumes(out []byte) (finalOut []byte) {
+	outList := bytes.Split(out, []byte("\n"))
+
+	// Inserting "NAME" string to capture headers of kubectl command output
+	pvcNameSet.Insert("NAME")
+
+	for _, o := range outList {
+		for pvc := range pvcNameSet {
+			if bytes.Contains(o, []byte(pvc)) {
+				finalOut = append(finalOut, o...)
+				finalOut = append(finalOut, []byte("\n")...)
+			}
+		}
+	}
+
+	return finalOut
+}
+
+func filterWebhooks(out []byte) (finalOut []byte) {
+	outList := bytes.Split(out, []byte("\n"))
+	webhookNameSet := sets.Set[string]{}
+
+	webhookNameSet.Insert(
+		MutatingWebhookName, MutatingWebhookPrefix, ValidatingWebhookName, ValidatingWebhookPrefix, "NAME")
+
+	for _, o := range outList {
+		for webhook := range webhookNameSet {
+			if bytes.Contains(o, []byte(webhook)) {
+				finalOut = append(finalOut, o...)
+				finalOut = append(finalOut, []byte("\n")...)
+			}
+		}
+	}
+
+	return finalOut
 }
 
 func makeTarAndClean(pathToStore string) error {
@@ -277,7 +435,7 @@ func captureContainerLogs(logger *zap.Logger, clientSet *kubernetes.Clientset, p
 
 	podLogs, reqErr := req.Stream(context.TODO())
 	if reqErr != nil {
-		if errors.IsBadRequest(reqErr) && previous {
+		if apierrors.IsBadRequest(reqErr) && previous {
 			logger.Debug("Previous container's logs not found ", zap.String("container", containerName),
 				zap.Error(reqErr))
 			return nil
@@ -365,161 +523,6 @@ func compress(src string, buf io.Writer) error {
 	}
 	// produce gzip
 	return zr.Close()
-}
-
-func appendOneEvent(data *[]byte, e *corev1.Event) {
-	event := fmt.Sprintf("%s\t\t\t%s\t\t%s\t\t\t%s/%s\t\t\t%v\n", getInterval(e), e.Type, e.Reason, e.InvolvedObject.Kind,
-		e.InvolvedObject.Name, strings.TrimSpace(e.Message))
-	*data = append(*data, event...)
-}
-
-func captureEvents(ctx context.Context, logger *zap.Logger, clientSet *kubernetes.Clientset, namespace,
-	rootOutputPath string) error {
-	listOptions := metav1.ListOptions{Limit: 500}
-
-	e := clientSet.CoreV1().Events(namespace)
-	el := &corev1.EventList{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "EventList",
-			APIVersion: "v1",
-		},
-	}
-	err := runtimeresource.FollowContinue(&listOptions,
-		func(options metav1.ListOptions) (runtime.Object, error) {
-			newEvents, err := e.List(ctx, options)
-			if err != nil {
-				return nil, runtimeresource.EnhanceListError(err, options, "events")
-			}
-			el.Items = append(el.Items, newEvents.Items...)
-			return newEvents, nil
-		})
-
-	if err != nil {
-		return err
-	}
-
-	if len(el.Items) == 0 {
-		logger.Info("No resource found in namespace", zap.String("kind", "Event"),
-			zap.String("namespace", namespace))
-		return nil
-	}
-
-	// Sort the events by `.metadata.creationTimestamp`
-	sort.SliceStable(el.Items, func(i, j int) bool {
-		return el.Items[i].GetCreationTimestamp().Time.Before(el.Items[j].GetCreationTimestamp().Time)
-	})
-
-	data := []byte("LAST SEEN\t\tTYPE\t\tREASON\t\t\tOBJECT\t\t\tMESSAGE\n")
-	for idx := range el.Items {
-		appendOneEvent(&data, &el.Items[idx])
-	}
-
-	objOutputDir := filepath.Join(rootOutputPath, KindDirNames[internal.EventKind])
-	if err := os.MkdirAll(objOutputDir, os.ModePerm); err != nil {
-		return err
-	}
-
-	fileName := filepath.Join(objOutputDir, KindDirNames[internal.EventKind]+".log")
-
-	if err := populateScraperDir(data, fileName); err != nil {
-		return err
-	}
-
-	logger.Info("Successfully saved ", zap.String("kind", "Events"),
-		zap.Int("number of objects", len(el.Items)), zap.String("namespace", namespace))
-
-	return nil
-}
-
-func getInterval(e *corev1.Event) string {
-	var interval string
-
-	firstTimestampSince := translateMicroTimestampSince(e.EventTime)
-	if e.EventTime.IsZero() {
-		firstTimestampSince = translateTimestampSince(e.FirstTimestamp)
-	}
-
-	switch {
-	case e.Series != nil:
-		interval = fmt.Sprintf("%s (x%d over %s)", translateMicroTimestampSince(e.Series.LastObservedTime),
-			e.Series.Count, firstTimestampSince)
-
-	case e.Count > 1:
-		interval = fmt.Sprintf("%s (x%d over %s)", translateTimestampSince(e.LastTimestamp), e.Count, firstTimestampSince)
-
-	default:
-		interval = firstTimestampSince
-	}
-
-	return interval
-}
-
-// translateMicroTimestampSince returns the elapsed time since timestamp in
-// human-readable approximation.
-func translateMicroTimestampSince(timestamp metav1.MicroTime) string {
-	if timestamp.IsZero() {
-		return "<unknown>"
-	}
-
-	return duration.HumanDuration(time.Since(timestamp.Time))
-}
-
-// translateTimestampSince returns the elapsed time since timestamp in
-// human-readable approximation.
-func translateTimestampSince(timestamp metav1.Time) string {
-	if timestamp.IsZero() {
-		return "<unknown>"
-	}
-
-	return duration.HumanDuration(time.Since(timestamp.Time))
-}
-
-func captureWebhookConfigurations(logger *zap.Logger, k8sClient client.Client, gvk schema.GroupVersionKind,
-	rootOutputPath string) error {
-	listOps := &client.ListOptions{}
-	u := &unstructured.UnstructuredList{}
-
-	u.SetGroupVersionKind(gvk)
-
-	if err := k8sClient.List(context.TODO(), u, listOps); err != nil {
-		logger.Error("Not able to list ", zap.String("kind", gvk.Kind), zap.Error(err))
-		return err
-	}
-
-	objOutputDir := filepath.Join(rootOutputPath, KindDirNames[gvk.Kind])
-	if err := os.MkdirAll(objOutputDir, os.ModePerm); err != nil {
-		return err
-	}
-
-	count := 0
-
-	switch gvk.Kind {
-	case internal.MutatingWebhookKind:
-		for idx := range u.Items {
-			name := u.Items[idx].GetName()
-			if strings.HasPrefix(name, MutatingWebhookPrefix) || name == MutatingWebhookName {
-				if err := serializeAndWrite(u.Items[idx], objOutputDir); err != nil {
-					return err
-				}
-				count++
-			}
-		}
-	case internal.ValidatingWebhookKind:
-		for idx := range u.Items {
-			name := u.Items[idx].GetName()
-			if strings.HasPrefix(name, ValidatingWebhookPrefix) || name == ValidatingWebhookName {
-				if err := serializeAndWrite(u.Items[idx], objOutputDir); err != nil {
-					return err
-				}
-				count++
-			}
-		}
-	}
-
-	logger.Info("Successfully saved ", zap.String("kind", gvk.Kind),
-		zap.Int("number of objects", count))
-
-	return nil
 }
 
 func serializeAndWrite(obj unstructured.Unstructured, objOutputDir string) error {

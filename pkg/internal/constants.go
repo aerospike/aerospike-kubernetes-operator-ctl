@@ -16,17 +16,23 @@ limitations under the License.
 package internal
 
 const (
+	// Namespace scope resources
+	PodKind              = "Pod"
+	STSKind              = "StatefulSet"
+	DeployKind           = "Deployment"
+	ServiceAccountKind   = "ServiceAccount"
+	ServiceKind          = "Service"
+	AerospikeClusterKind = "AerospikeCluster"
+	PVCKind              = "PersistentVolumeClaim"
+	EventKind            = "Event"
+	RoleBindingKind      = "RoleBinding"
+
+	// Cluster scope resources
 	NodeKind               = "Node"
-	PVCKind                = "PersistentVolumeClaim"
-	STSKind                = "StatefulSet"
+	PVKind                 = "PersistentVolume"
 	SCKind                 = "StorageClass"
-	AerospikeClusterKind   = "AerospikeCluster"
-	PodKind                = "Pod"
-	EventKind              = "Event"
 	MutatingWebhookKind    = "MutatingWebhookConfiguration"
 	ValidatingWebhookKind  = "ValidatingWebhookConfiguration"
-	ServiceAccountKind     = "ServiceAccount"
 	ClusterRoleKind        = "ClusterRole"
-	RoleBindingKind        = "RoleBinding"
 	ClusterRoleBindingKind = "ClusterRoleBinding"
 )
