@@ -27,8 +27,11 @@ import (
 const (
 	nodeName             = "test-node"
 	scName               = "test-sc"
+	serviceName          = "test-service"
 	pvcName              = "test-pvc"
+	pvName               = "test-pv"
 	stsName              = "test-sts"
+	deployName           = "test-deploy"
 	podName              = "test-pod"
 	containerName        = "test-container"
 	aerospikeClusterName = "test-aerocluster"
@@ -45,22 +48,32 @@ var filesList = map[string]bool{
 		nodeName+collectinfo.FileSuffix): false,
 	filepath.Join(clusterScopeDir, collectinfo.KindDirNames[collectinfo.SCKind],
 		scName+collectinfo.FileSuffix): false,
+	filepath.Join(clusterScopeDir, collectinfo.KindDirNames[collectinfo.PVKind],
+		pvName+collectinfo.FileSuffix): false,
 	filepath.Join(clusterScopeDir, collectinfo.KindDirNames[collectinfo.MutatingWebhookKind],
 		collectinfo.MutatingWebhookName+collectinfo.FileSuffix): false,
 	filepath.Join(clusterScopeDir, collectinfo.KindDirNames[collectinfo.ValidatingWebhookKind],
 		collectinfo.ValidatingWebhookName+collectinfo.FileSuffix): false,
+	filepath.Join(clusterScopeDir, collectinfo.SummaryDir,
+		collectinfo.SummaryFile): false,
 	filepath.Join(namespaceScopeDir, namespace, collectinfo.KindDirNames[collectinfo.PVCKind],
 		pvcName+collectinfo.FileSuffix): false,
 	filepath.Join(namespaceScopeDir, namespace, collectinfo.KindDirNames[collectinfo.STSKind],
 		stsName+collectinfo.FileSuffix): false,
+	filepath.Join(namespaceScopeDir, namespace, collectinfo.KindDirNames[collectinfo.DeployKind],
+		deployName+collectinfo.FileSuffix): false,
 	filepath.Join(namespaceScopeDir, namespace, collectinfo.KindDirNames[collectinfo.PodKind], podName, "logs",
 		containerName+".log"): false,
 	filepath.Join(namespaceScopeDir, namespace, collectinfo.KindDirNames[collectinfo.PodKind], podName, "logs", "previous",
 		containerName+".log"): false,
 	filepath.Join(namespaceScopeDir, namespace, collectinfo.KindDirNames[collectinfo.PodKind], podName,
 		podName+collectinfo.FileSuffix): false,
+	filepath.Join(namespaceScopeDir, namespace, collectinfo.KindDirNames[collectinfo.ServiceKind],
+		serviceName+collectinfo.FileSuffix): false,
 	filepath.Join(namespaceScopeDir, namespace, collectinfo.KindDirNames[collectinfo.AerospikeClusterKind],
 		aerospikeClusterName+collectinfo.FileSuffix): false,
+	filepath.Join(namespaceScopeDir, namespace, collectinfo.SummaryDir,
+		collectinfo.SummaryFile): false,
 	filepath.Join(collectinfo.RootOutputDir,
 		collectinfo.LogFileName): false,
 }
@@ -84,6 +97,17 @@ var _ = Describe("collectInfo", func() {
 			err = k8sClient.Create(context.TODO(), sc, createOption)
 			Expect(err).ToNot(HaveOccurred())
 
+			service := &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{Name: serviceName, Namespace: namespace},
+				Spec: corev1.ServiceSpec{
+					Ports: []corev1.ServicePort{
+						{Port: 3000},
+					},
+				},
+			}
+			err = k8sClient.Create(context.TODO(), service, createOption)
+			Expect(err).ToNot(HaveOccurred())
+
 			pvc := &corev1.PersistentVolumeClaim{
 				ObjectMeta: metav1.ObjectMeta{Name: pvcName, Namespace: namespace},
 				Spec: corev1.PersistentVolumeClaimSpec{
@@ -93,9 +117,34 @@ var _ = Describe("collectInfo", func() {
 							corev1.ResourceStorage: resource.MustParse("1Gi"),
 						},
 					},
+					VolumeName: pvName,
 				},
 			}
 			err = k8sClient.Create(context.TODO(), pvc, createOption)
+			Expect(err).ToNot(HaveOccurred())
+
+			volumeMode := corev1.PersistentVolumeBlock
+			pv := &corev1.PersistentVolume{
+				ObjectMeta: metav1.ObjectMeta{Name: pvName},
+				Spec: corev1.PersistentVolumeSpec{
+					AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+					Capacity: map[corev1.ResourceName]resource.Quantity{
+						"storage": resource.MustParse("1Gi"),
+					},
+					ClaimRef: &corev1.ObjectReference{
+						Name:      pvcName,
+						Namespace: namespace,
+					},
+					StorageClassName: "",
+					VolumeMode:       &volumeMode,
+					PersistentVolumeSource: corev1.PersistentVolumeSource{
+						HostPath: &corev1.HostPathVolumeSource{
+							Path: "/opt/volume/ngnix",
+						},
+					},
+				},
+			}
+			err = k8sClient.Create(context.TODO(), pv, createOption)
 			Expect(err).ToNot(HaveOccurred())
 
 			sts := &appsv1.StatefulSet{
@@ -112,6 +161,30 @@ var _ = Describe("collectInfo", func() {
 				},
 			}
 			err = k8sClient.Create(context.TODO(), sts, createOption)
+			Expect(err).ToNot(HaveOccurred())
+
+			deploy := &appsv1.Deployment{
+				ObjectMeta: metav1.ObjectMeta{Name: deployName, Namespace: namespace},
+				Spec: appsv1.DeploymentSpec{
+					Selector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{"app": "t1", "s2iBuilder": "t1-s2i-1x55", "version": "v1"},
+					},
+					Template: corev1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: map[string]string{"app": "t1", "s2iBuilder": "t1-s2i-1x55", "version": "v1"},
+						},
+						Spec: corev1.PodSpec{
+							Containers: []corev1.Container{
+								{
+									Name:  containerName,
+									Image: "nginx:1.12",
+								},
+							},
+						},
+					},
+				},
+			}
+			err = k8sClient.Create(context.TODO(), deploy, createOption)
 			Expect(err).ToNot(HaveOccurred())
 
 			pod := &corev1.Pod{
@@ -142,7 +215,7 @@ var _ = Describe("collectInfo", func() {
 
 			gvk := schema.GroupVersionKind{
 				Group:   "asdb.aerospike.com",
-				Version: "v1beta1",
+				Version: "v1",
 				Kind:    "AerospikeCluster",
 			}
 
