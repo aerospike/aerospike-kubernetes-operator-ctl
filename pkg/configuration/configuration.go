@@ -51,34 +51,19 @@ func NewParams(ctx context.Context, namespaces []string, allNamespaces, clusterS
 
 	logger.Info("Created Kubernetes clients")
 
-	if len(namespaces) == 0 && !allNamespaces {
-		return nil, fmt.Errorf("either `namespaces` or `all-namespaces` argument must be provided")
-	}
-
-	nsSet := sets.Set[string]{}
-	nsSet.Insert(namespaces...)
-
-	if allNamespaces {
-		logger.Info("Capturing for all namespaces")
-
-		namespaceObjs := &corev1.NamespaceList{}
-		if err := k8sClient.List(ctx, namespaceObjs); err != nil {
-			return nil, err
-		}
-
-		for idx := range namespaceObjs.Items {
-			nsSet.Insert(namespaceObjs.Items[idx].Name)
-		}
-	}
-
-	return &Parameters{
+	params := &Parameters{
 		K8sClient:     k8sClient,
 		ClientSet:     clientSet,
 		Logger:        logger,
-		Namespaces:    nsSet,
 		ClusterScope:  clusterScope,
 		AllNamespaces: allNamespaces,
-	}, nil
+	}
+
+	if err := params.ValidateNamespaces(ctx, namespaces); err != nil {
+		return nil, err
+	}
+
+	return params, nil
 }
 
 func createKubeClients() (client.Client, *kubernetes.Clientset, error) {
@@ -100,6 +85,50 @@ func createKubeClients() (client.Client, *kubernetes.Clientset, error) {
 	}
 
 	return k8sClient, clientSet, nil
+}
+
+func (p *Parameters) ValidateNamespaces(ctx context.Context, namespaces []string) error {
+	if len(namespaces) == 0 && !p.AllNamespaces {
+		return fmt.Errorf("either `namespaces` or `all-namespaces` argument must be provided")
+	}
+
+	userNsSet := sets.Set[string]{}
+	userNsSet.Insert(namespaces...)
+
+	allNsSet := sets.Set[string]{}
+	namespaceObjs := &corev1.NamespaceList{}
+
+	if err := p.K8sClient.List(ctx, namespaceObjs); err != nil {
+		return err
+	}
+
+	for idx := range namespaceObjs.Items {
+		allNsSet.Insert(namespaceObjs.Items[idx].Name)
+	}
+
+	if p.AllNamespaces {
+		p.Logger.Info("Capturing for all namespaces")
+
+		userNsSet = allNsSet
+	} else {
+		nonExistentNs := userNsSet.Difference(allNsSet)
+
+		// error out if all the user given namespaces are not present in cluster
+		if nonExistentNs.Len() > 0 {
+			if nonExistentNs.Len() == userNsSet.Len() {
+				return fmt.Errorf("all given namespaces are not present in cluster")
+			}
+
+			p.Logger.Warn(
+				fmt.Sprintf("namespaces %+v not present in cluster, skipping those namespaces",
+					nonExistentNs.UnsortedList()))
+			userNsSet = userNsSet.Difference(nonExistentNs)
+		}
+	}
+
+	p.Namespaces = userNsSet
+
+	return nil
 }
 
 func InitializeConsoleLogger() *zap.Logger {

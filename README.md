@@ -140,16 +140,17 @@ If `cluster-scope` is set (Default true), auth command grants cluster level RBAC
 * Current user should have the CREATE, GET, UPDATE and DELETE permission for ServiceAccount and RoleBinding.
 * If **cluster-scope** flag is set, user should have the CREATE, GET, UPDATE and DELETE permission for ServiceAccount and ClusterRoleBinding.
 
-#### Collect cluster info
+#### Create/Delete RBAC resources using local binary
 ```sh
- ./bin/akoctl auth create -n aerospike,olm 
- ./bin/akoctl auth delete -n aerospike,olm 
+ ./bin/akoctl auth create -n aerospike,olm  # creates RBAC resources for aerospike and olm namespaces
+ ./bin/akoctl auth delete -n aerospike,olm  # deletes RBAC resources for aerospike and olm namespaces
 ```
 
-#### Collect cluster info using krew
+#### Create/Delete RBAC resources using krew
 ```sh
- kubectl akoctl auth create -n aerospike,olm
- kubectl akoctl auth delete -n aerospike,olm
+kubectl akoctl auth create -n aerospike,olm # creates RBAC resources for aerospike and olm namespaces
+kubectl akoctl auth delete -n aerospike,olm # deletes RBAC resources for aerospike and olm namespaces
+
 ```
 
 ## Global Flags:

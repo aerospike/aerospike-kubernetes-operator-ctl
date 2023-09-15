@@ -26,6 +26,7 @@ import (
 	"github.com/aerospike/aerospike-kubernetes-operator-ctl/pkg/auth"
 	"github.com/aerospike/aerospike-kubernetes-operator-ctl/pkg/configuration"
 	"github.com/aerospike/aerospike-kubernetes-operator-ctl/pkg/internal"
+	"github.com/aerospike/aerospike-kubernetes-operator-ctl/pkg/testutils"
 )
 
 var _ = Describe("Auth", func() {
@@ -62,10 +63,9 @@ var _ = Describe("Auth", func() {
 })
 
 func testCreateRbac(namespaces []string, clusterScope bool) {
-	params, err := configuration.NewParams(testCtx, namespaces, false, clusterScope)
+	params, err := testutils.NewTestParams(testCtx, k8sClient, nil, namespaces, false, clusterScope)
 	Expect(err).NotTo(HaveOccurred())
 	Expect(params).NotTo(BeNil())
-	params.K8sClient = k8sClient
 	Expect(auth.Create(testCtx, params)).NotTo(HaveOccurred())
 
 	validateRbacCreate(params)
@@ -117,10 +117,9 @@ func validateRbacCreate(params *configuration.Parameters) {
 }
 
 func testDeleteRbac(namespaces []string, clusterScope, lastEntry bool) {
-	params, err := configuration.NewParams(testCtx, namespaces, false, clusterScope)
+	params, err := testutils.NewTestParams(testCtx, k8sClient, nil, namespaces, false, clusterScope)
 	Expect(err).NotTo(HaveOccurred())
 	Expect(params).NotTo(BeNil())
-	params.K8sClient = k8sClient
 	Expect(auth.Delete(testCtx, params)).NotTo(HaveOccurred())
 
 	validateRbacDelete(params, lastEntry)

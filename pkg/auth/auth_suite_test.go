@@ -16,7 +16,6 @@ limitations under the License.
 package auth_test
 
 import (
-	goctx "context"
 	"testing"
 	"time"
 
@@ -24,15 +23,14 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gexec"
 	"golang.org/x/net/context"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+
+	"github.com/aerospike/aerospike-kubernetes-operator-ctl/pkg/testutils"
 )
 
 var (
@@ -69,7 +67,7 @@ var _ = BeforeSuite(
 		Expect(err).NotTo(HaveOccurred())
 		Expect(k8sClient).NotTo(BeNil())
 
-		err = createNamespace(testCtx, k8sClient, namespace)
+		err = testutils.CreateNamespace(testCtx, k8sClient, namespace)
 		Expect(err).NotTo(HaveOccurred())
 	})
 
@@ -81,19 +79,3 @@ var _ = AfterSuite(
 		Expect(err).ToNot(HaveOccurred())
 	},
 )
-
-func createNamespace(
-	ctx goctx.Context, k8sClient client.Client, name string) error {
-	ns := &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
-		},
-	}
-
-	err := k8sClient.Create(ctx, ns)
-	if err != nil && !errors.IsAlreadyExists(err) {
-		return err
-	}
-
-	return nil
-}

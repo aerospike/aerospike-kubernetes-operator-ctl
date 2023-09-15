@@ -37,8 +37,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aerospike/aerospike-kubernetes-operator-ctl/pkg/collectinfo"
-	"github.com/aerospike/aerospike-kubernetes-operator-ctl/pkg/configuration"
 	"github.com/aerospike/aerospike-kubernetes-operator-ctl/pkg/internal"
+	"github.com/aerospike/aerospike-kubernetes-operator-ctl/pkg/testutils"
 )
 
 const (
@@ -247,11 +247,9 @@ var _ = Describe("collectInfo", func() {
 			err = os.MkdirAll(collectinfo.RootOutputDir, os.ModePerm)
 			Expect(err).ToNot(HaveOccurred())
 
-			params, err := configuration.NewParams(testCtx, []string{namespace}, false, true)
+			params, err := testutils.NewTestParams(testCtx, k8sClient, k8sClientSet, []string{namespace}, false, true)
 			Expect(err).ToNot(HaveOccurred())
 
-			params.K8sClient = k8sClient
-			params.ClientSet = k8sClientSet
 			params.Logger = collectinfo.AttachFileLogger(params.Logger,
 				filepath.Join(collectinfo.RootOutputDir, collectinfo.LogFileName))
 
