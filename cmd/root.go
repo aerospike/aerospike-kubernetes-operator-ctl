@@ -21,11 +21,19 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var (
+	kubeconfig    string
+	namespaces    []string
+	allNamespaces bool
+	clusterScope  bool
+)
+
 var rootCmd = &cobra.Command{
 	Use:   "akoctl",
 	Short: "A command line tool for Aerospike Kubernetes Operator",
-	Long: `A CLI which is used to interact with 
-Aerospike Kubernetes Operator cluster. For example:
+	Long: `A CLI which is used to perform different functions related to Aerospike Kubernetes Operator and 
+Aerospike Kubernetes Operator cluster.
+For example:
 akoctl collectinfo --namespaces aerospike,olm`,
 }
 
@@ -34,4 +42,15 @@ func Execute() {
 	if err != nil {
 		os.Exit(1)
 	}
+}
+
+func init() {
+	rootCmd.PersistentFlags().StringSliceVarP(&namespaces, "namespaces", "n", namespaces,
+		"Comma separated list of namespaces to perform operation in")
+	rootCmd.PersistentFlags().StringVar(&kubeconfig, "kubeconfig", "",
+		"Absolute path to the kubeconfig file")
+	rootCmd.PersistentFlags().BoolVarP(&allNamespaces, "all-namespaces", "A", false,
+		"Specify all namespaces present in cluster")
+	rootCmd.PersistentFlags().BoolVar(&clusterScope, "cluster-scope", true,
+		"Permission to work in cluster scoped mode (operate on cluster scoped resources like ClusterRoleBinding)")
 }

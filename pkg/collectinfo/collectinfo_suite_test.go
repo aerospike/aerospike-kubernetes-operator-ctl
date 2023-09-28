@@ -1,7 +1,21 @@
+/*
+Copyright 2023 The aerospike-operator Authors.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+	http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package collectinfo_test
 
 import (
-	goctx "context"
 	"path/filepath"
 	"testing"
 	"time"
@@ -9,10 +23,8 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gexec"
-	corev1 "k8s.io/api/core/v1"
+	"golang.org/x/net/context"
 	apixv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
-	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -21,19 +33,22 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+
+	"github.com/aerospike/aerospike-kubernetes-operator-ctl/pkg/testutils"
 )
 
 var (
 	testEnv      *envtest.Environment
 	cfg          *rest.Config
 	k8sClient    client.Client
+	testCtx      = context.TODO()
 	namespace    = "testns"
-	k8sClientset *kubernetes.Clientset
+	k8sClientSet *kubernetes.Clientset
 )
 
 func TestPkg(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Pkg Suite")
+	RunSpecs(t, "CollectInfo Suite")
 }
 
 var _ = BeforeSuite(
@@ -67,11 +82,10 @@ var _ = BeforeSuite(
 		Expect(err).NotTo(HaveOccurred())
 		Expect(k8sClient).NotTo(BeNil())
 
-		k8sClientset = kubernetes.NewForConfigOrDie(cfg)
+		k8sClientSet = kubernetes.NewForConfigOrDie(cfg)
 		Expect(k8sClient).NotTo(BeNil())
 
-		ctx := goctx.TODO()
-		err = createNamespace(k8sClient, ctx, namespace)
+		err = testutils.CreateNamespace(testCtx, k8sClient, namespace)
 		Expect(err).NotTo(HaveOccurred())
 	})
 
@@ -83,20 +97,3 @@ var _ = AfterSuite(
 		Expect(err).ToNot(HaveOccurred())
 	},
 )
-
-func createNamespace(
-	k8sClient client.Client, ctx goctx.Context, name string,
-) error {
-	ns := &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
-		},
-	}
-
-	err := k8sClient.Create(ctx, ns)
-	if err != nil && !errors.IsAlreadyExists(err) {
-		return err
-	}
-
-	return nil
-}

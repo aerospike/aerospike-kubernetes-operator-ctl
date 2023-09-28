@@ -1,3 +1,18 @@
+/*
+Copyright 2023 The aerospike-operator Authors.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+	http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package collectinfo
 
 import (
@@ -16,19 +31,19 @@ import (
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/rest"
-	"k8s.io/kube-openapi/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/config"
+	"sigs.k8s.io/yaml"
+
+	"github.com/aerospike/aerospike-kubernetes-operator-ctl/pkg/configuration"
+	"github.com/aerospike/aerospike-kubernetes-operator-ctl/pkg/internal"
 )
 
 const (
@@ -50,96 +65,71 @@ const (
 var (
 	currentTime = time.Now().Format("20060102_150405")
 	TarName     = RootOutputDir + "_" + currentTime + ".tar.gzip"
-	pvcNameSet  = sets.String{}
+	pvcNameSet  = sets.Set[string]{}
 )
 
-func RunCollectInfo(namespaces []string, path string, allNamespaces, clusterScope bool) error {
+func RunCollectInfo(ctx context.Context, params *configuration.Parameters, path string) error {
 	rootOutputPath := filepath.Join(path, RootOutputDir)
 	if err := os.Mkdir(rootOutputPath, os.ModePerm); err != nil {
 		return err
 	}
 
-	logger := InitializeLogger(filepath.Join(rootOutputPath, LogFileName))
+	params.Logger = AttachFileLogger(params.Logger, filepath.Join(rootOutputPath, LogFileName))
 
-	if len(namespaces) == 0 && !allNamespaces {
-		logger.Error("Either `namespaces` or `all-namespaces` argument must be provided")
-		return nil
-	}
-
-	k8sClient, clientSet, err := createKubeClients(config.GetConfigOrDie())
-	if err != nil {
-		logger.Error("Not able to create kube clients", zap.Error(err))
-		return err
-	}
-
-	if err := CollectInfo(logger, k8sClient, clientSet, namespaces, path, allNamespaces, clusterScope); err != nil {
-		logger.Error("Not able to collect object info", zap.String("err", err.Error()))
+	if err := CollectInfo(ctx, params, path); err != nil {
+		params.Logger.Error("Not able to collect object info", zap.String("err", err.Error()))
 	}
 
 	return nil
 }
 
-func InitializeLogger(logFilePath string) *zap.Logger {
+func AttachFileLogger(logger *zap.Logger, path string) *zap.Logger {
 	cfg := zap.NewProductionEncoderConfig()
 	cfg.EncodeTime = zapcore.ISO8601TimeEncoder
 	fileEncoder := zapcore.NewJSONEncoder(cfg)
-	consoleEncoder := zapcore.NewConsoleEncoder(cfg)
-	logFile, _ := os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644) //nolint:gocritic // file permission
-	writer := zapcore.AddSync(logFile)
-	defaultLogLevel := zapcore.DebugLevel
+	logFile, _ := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644) //nolint:gocritic // file permission
+	defaultLogLevel := zapcore.InfoLevel
 	core := zapcore.NewTee(
-		zapcore.NewCore(fileEncoder, writer, defaultLogLevel),
-		zapcore.NewCore(consoleEncoder, zapcore.AddSync(os.Stdout), defaultLogLevel),
+		zapcore.NewCore(fileEncoder, zapcore.AddSync(logFile), defaultLogLevel),
 	)
 
-	return zap.New(core, zap.AddCaller(), zap.AddStacktrace(zapcore.DPanicLevel))
+	updateCore := zap.WrapCore(func(c zapcore.Core) zapcore.Core {
+		return zapcore.NewTee(c, core)
+	})
+
+	return logger.WithOptions(updateCore)
 }
 
-func CollectInfo(logger *zap.Logger, k8sClient client.Client, clientSet *kubernetes.Clientset, namespaces []string,
-	path string, allNamespaces, clusterScope bool) error {
+func CollectInfo(ctx context.Context, params *configuration.Parameters, path string) error {
 	rootOutputPath := filepath.Join(path, RootOutputDir)
-	ctx := context.TODO()
-	nsList := sets.String{}
-	nsList.Insert(namespaces...)
 
-	if allNamespaces {
-		logger.Info("Capturing for all namespaces")
+	params.Logger.Info("Capturing namespace scoped objects info")
 
-		namespaceObjs := &corev1.NamespaceList{}
-		if err := k8sClient.List(ctx, namespaceObjs); err != nil {
-			return err
-		}
-
-		for idx := range namespaceObjs.Items {
-			nsList.Insert(namespaceObjs.Items[idx].Name)
-		}
-	}
-
-	for ns := range nsList {
+	for ns := range params.Namespaces {
 		objOutputDir := filepath.Join(rootOutputPath, NamespaceScopedDir, ns)
 		if err := os.MkdirAll(objOutputDir, os.ModePerm); err != nil {
 			return err
 		}
 
 		for _, gvk := range gvkListNSScoped {
-			if gvk.Kind == PodKind {
-				if err := capturePodLogs(ctx, logger, clientSet, ns, objOutputDir); err != nil {
+			if gvk.Kind == internal.PodKind {
+				if err := capturePodLogs(ctx, params.Logger, params.ClientSet, ns, objOutputDir); err != nil {
 					return err
 				}
 			} else {
-				if err := captureObject(logger, k8sClient, gvk, ns, objOutputDir); err != nil {
+				if err := captureObject(params.Logger, params.K8sClient, gvk, ns, objOutputDir); err != nil {
 					return err
 				}
 			}
 		}
 
-		if err := captureSummary(logger, ns, objOutputDir); err != nil {
+		if err := captureSummary(params.Logger, ns, objOutputDir); err != nil {
 			return err
 		}
 	}
 
-	if clusterScope {
-		logger.Info("Capturing cluster scoped objects info")
+	if params.ClusterScope {
+		params.Logger.Info("Capturing cluster scoped objects info")
 
 		objOutputDir := filepath.Join(rootOutputPath, ClusterScopedDir)
 		if err := os.MkdirAll(objOutputDir, os.ModePerm); err != nil {
@@ -147,40 +137,19 @@ func CollectInfo(logger *zap.Logger, k8sClient client.Client, clientSet *kuberne
 		}
 
 		for _, gvk := range gvkListClusterScoped {
-			if err := captureObject(logger, k8sClient, gvk, "", objOutputDir); err != nil {
+			if err := captureObject(params.Logger, params.K8sClient, gvk, "", objOutputDir); err != nil {
 				return err
 			}
 		}
 
-		if err := captureSummary(logger, "", objOutputDir); err != nil {
+		if err := captureSummary(params.Logger, "", objOutputDir); err != nil {
 			return err
 		}
 	}
 
-	logger.Info("Compressing and deleting all logs and created ", zap.String("tar file", TarName))
+	params.Logger.Info("Compressing and deleting all logs and created ", zap.String("tar file", TarName))
 
 	return makeTarAndClean(path)
-}
-
-func createKubeClients(cfg *rest.Config) (client.Client, *kubernetes.Clientset, error) {
-	scheme := runtime.NewScheme()
-	if err := clientgoscheme.AddToScheme(scheme); err != nil {
-		return nil, nil, err
-	}
-
-	k8sClient, err := client.New(
-		cfg, client.Options{Scheme: scheme},
-	)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	clientSet, err := kubernetes.NewForConfig(cfg)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return k8sClient, clientSet, nil
 }
 
 func captureObject(logger *zap.Logger, k8sClient client.Client, gvk schema.GroupVersionKind,
@@ -191,17 +160,17 @@ func captureObject(logger *zap.Logger, k8sClient client.Client, gvk schema.Group
 	u.SetGroupVersionKind(gvk)
 
 	if err := k8sClient.List(context.TODO(), u, listOps); err != nil {
-		if gvk.Kind == AerospikeClusterKind && errors.Is(err, &meta.NoKindMatchError{}) {
+		if gvk.Kind == internal.AerospikeClusterKind && errors.Is(err, &meta.NoKindMatchError{}) {
 			gvk.Version = "v1beta1"
 			u.SetGroupVersionKind(gvk)
 
 			if listErr := k8sClient.List(context.TODO(), u, listOps); listErr != nil {
 				logger.Error("Not able to list ",
-					zap.String("object", gvk.Kind), zap.String("version", gvk.Version), zap.Error(listErr))
+					zap.String("kind", gvk.Kind), zap.String("version", gvk.Version), zap.Error(listErr))
 				return err
 			}
 		} else {
-			logger.Error("Not able to list ", zap.String("object", gvk.Kind), zap.Error(err))
+			logger.Error("Not able to list ", zap.String("kind", gvk.Kind), zap.Error(err))
 			return err
 		}
 	}
@@ -211,26 +180,32 @@ func captureObject(logger *zap.Logger, k8sClient client.Client, gvk schema.Group
 		return err
 	}
 
+	if len(u.Items) == 0 {
+		logger.Info("No resource found in namespace", zap.String("kind", gvk.Kind),
+			zap.String("namespace", ns))
+		return nil
+	}
+
 	count := 0
 
 	for idx := range u.Items {
 		switch gvk.Kind {
-		case PVCKind:
+		case internal.PVCKind:
 			obj := u.Items[idx].Object
 			if obj["spec"].(map[string]interface{})["volumeName"] != nil {
 				volumeName := obj["spec"].(map[string]interface{})["volumeName"].(string)
 				pvcNameSet.Insert(volumeName)
 			}
-		case PVKind:
+		case internal.PVKind:
 			if !pvcNameSet.Has(u.Items[idx].GetName()) {
 				continue
 			}
-		case ValidatingWebhookKind:
+		case internal.ValidatingWebhookKind:
 			name := u.Items[idx].GetName()
 			if !(strings.HasPrefix(name, ValidatingWebhookPrefix) || name == ValidatingWebhookName) {
 				continue
 			}
-		case MutatingWebhookKind:
+		case internal.MutatingWebhookKind:
 			name := u.Items[idx].GetName()
 			if !(strings.HasPrefix(name, MutatingWebhookPrefix) || name == MutatingWebhookName) {
 				continue
@@ -244,8 +219,8 @@ func captureObject(logger *zap.Logger, k8sClient client.Client, gvk schema.Group
 		count++
 	}
 
-	logger.Info("Successfully saved ", zap.String("object", gvk.Kind),
-		zap.Int("no of objects", count), zap.String("namespace", ns))
+	logger.Info("Successfully saved ", zap.String("kind", gvk.Kind),
+		zap.Int("number of objects", count), zap.String("namespace", ns))
 
 	return nil
 }
@@ -265,8 +240,9 @@ func captureSummary(logger *zap.Logger, ns, rootOutputPath string) error {
 			cmdMap[gvk.Kind] = cmd
 		}
 
-		cmd := exec.Command(kubectlCMD, "get", EventKind, "-n", ns, "--sort-by=.metadata.creationTimestamp")
-		cmdMap[EventKind] = cmd
+		//nolint:gosec // kind is constant
+		cmd := exec.Command(kubectlCMD, "get", internal.EventKind, "-n", ns, "--sort-by=.metadata.creationTimestamp")
+		cmdMap[internal.EventKind] = cmd
 	} else {
 		for _, gvk := range gvkListClusterScoped {
 			cmd := exec.Command(kubectlCMD, "get", gvk.Kind) //nolint:gosec // kind is constant
@@ -290,13 +266,13 @@ func captureSummary(logger *zap.Logger, ns, rootOutputPath string) error {
 		}
 
 		switch kind {
-		case PVKind:
+		case internal.PVKind:
 			out = filterPersistentVolumes(out)
-		case MutatingWebhookKind:
+		case internal.MutatingWebhookKind:
 			out = filterWebhooks(out)
-		case ValidatingWebhookKind:
+		case internal.ValidatingWebhookKind:
 			out = filterWebhooks(out)
-		case EventKind:
+		case internal.EventKind:
 			events = out
 			continue
 		}
@@ -347,7 +323,7 @@ func filterPersistentVolumes(out []byte) (finalOut []byte) {
 
 func filterWebhooks(out []byte) (finalOut []byte) {
 	outList := bytes.Split(out, []byte("\n"))
-	webhookNameSet := sets.String{}
+	webhookNameSet := sets.Set[string]{}
 
 	webhookNameSet.Insert(
 		MutatingWebhookName, MutatingWebhookPrefix, ValidatingWebhookName, ValidatingWebhookPrefix, "NAME")
@@ -389,8 +365,14 @@ func capturePodLogs(ctx context.Context, logger *zap.Logger, clientSet *kubernet
 	rootOutputPath string) error {
 	pods, err := clientSet.CoreV1().Pods(ns).List(ctx, metav1.ListOptions{})
 	if err != nil {
-		logger.Error("Not able to list ", zap.String("object", PodKind), zap.Error(err))
+		logger.Error("Not able to list ", zap.String("kind", internal.PodKind), zap.Error(err))
 		return err
+	}
+
+	if len(pods.Items) == 0 {
+		logger.Info("No resource found in namespace", zap.String("kind", "Pod"),
+			zap.String("namespace", ns))
+		return nil
 	}
 
 	for podIndex := range pods.Items {
@@ -399,7 +381,7 @@ func capturePodLogs(ctx context.Context, logger *zap.Logger, clientSet *kubernet
 			return err
 		}
 
-		podLogsDir := filepath.Join(rootOutputPath, KindDirNames[PodKind], pods.Items[podIndex].Name, "logs")
+		podLogsDir := filepath.Join(rootOutputPath, KindDirNames[internal.PodKind], pods.Items[podIndex].Name, "logs")
 		if err := os.MkdirAll(podLogsDir, os.ModePerm); err != nil {
 			return err
 		}
@@ -437,8 +419,8 @@ func capturePodLogs(ctx context.Context, logger *zap.Logger, clientSet *kubernet
 		}
 	}
 
-	logger.Info("Successfully saved ", zap.String("object", PodKind),
-		zap.Int("no of objects", len(pods.Items)), zap.String("namespace", ns))
+	logger.Info("Successfully saved ", zap.String("kind", internal.PodKind),
+		zap.Int("number of objects", len(pods.Items)), zap.String("namespace", ns))
 
 	return nil
 }
@@ -453,8 +435,15 @@ func captureContainerLogs(logger *zap.Logger, clientSet *kubernetes.Clientset, p
 
 	podLogs, reqErr := req.Stream(context.TODO())
 	if reqErr != nil {
-		logger.Error("Container's logs not found ", zap.String("container", containerName),
+		if apierrors.IsBadRequest(reqErr) && previous {
+			logger.Debug("Previous container's logs not found ", zap.String("container", containerName),
+				zap.Error(reqErr))
+			return nil
+		}
+
+		logger.Error("Could not fetch container's logs ", zap.String("container", containerName),
 			zap.Bool("previous", previous), zap.Error(reqErr))
+
 		return nil
 	}
 
