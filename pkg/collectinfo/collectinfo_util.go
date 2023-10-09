@@ -175,15 +175,15 @@ func captureObject(logger *zap.Logger, k8sClient client.Client, gvk schema.Group
 		}
 	}
 
-	objOutputDir := filepath.Join(rootOutputPath, KindDirNames[gvk.Kind])
-	if err := os.MkdirAll(objOutputDir, os.ModePerm); err != nil {
-		return err
-	}
-
 	if len(u.Items) == 0 {
 		logger.Info("No resource found in namespace", zap.String("kind", gvk.Kind),
 			zap.String("namespace", ns))
 		return nil
+	}
+
+	objOutputDir := filepath.Join(rootOutputPath, KindDirNames[gvk.Kind])
+	if err := os.MkdirAll(objOutputDir, os.ModePerm); err != nil {
+		return err
 	}
 
 	count := 0
