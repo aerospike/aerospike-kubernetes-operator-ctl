@@ -148,7 +148,12 @@ func createOrUpdateBinding(
 
 				params.Logger.Info("Updated resource", zap.String("kind", gvk.Kind),
 					zap.String("name", nsNm.Name), zap.String("namespace", nsNm.Namespace))
+
+				return nil
 			}
+
+			params.Logger.Info("Update not required, skipping", zap.String("kind", gvk.Kind),
+				zap.String("name", nsNm.Name), zap.String("namespace", nsNm.Namespace))
 
 			return nil
 		}
