@@ -16,6 +16,7 @@ limitations under the License.
 package collectinfo_test
 
 import (
+	"context"
 	"path/filepath"
 	"testing"
 	"time"
@@ -23,7 +24,6 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gexec"
-	"golang.org/x/net/context"
 	apixv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
