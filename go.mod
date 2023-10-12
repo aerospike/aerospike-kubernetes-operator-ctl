@@ -15,7 +15,10 @@ require (
 	sigs.k8s.io/yaml v1.3.0
 )
 
-// Pinned this dependcy to fix vulnerbaility in `grpc` pkg
+// Pinned this dependcy to fix vulnerbaility in `golang.org/x/net` pkg
+replace golang.org/x/net => golang.org/x/net v0.17.0
+
+// Pinned this dependcy to fix vulnerbaility in `google.golang.org/grpc` pkg
 replace google.golang.org/grpc => google.golang.org/grpc v1.56.3
 
 require (
