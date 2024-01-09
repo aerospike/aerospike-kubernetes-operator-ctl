@@ -129,7 +129,7 @@ var _ = Describe("collectInfo", func() {
 				ObjectMeta: metav1.ObjectMeta{Name: pvcName, Namespace: namespace},
 				Spec: corev1.PersistentVolumeClaimSpec{
 					AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-					Resources: corev1.ResourceRequirements{
+					Resources: corev1.VolumeResourceRequirements{
 						Requests: corev1.ResourceList{
 							corev1.ResourceStorage: resource.MustParse("1Gi"),
 						},

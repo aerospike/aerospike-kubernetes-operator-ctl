@@ -34,10 +34,11 @@ import (
 )
 
 var (
-	testEnv   *envtest.Environment
-	k8sClient client.Client
-	testCtx   = context.TODO()
-	namespace = "testns"
+	testEnv          *envtest.Environment
+	k8sClient        client.Client
+	testCtx          = context.TODO()
+	namespace        = "testns"
+	defaultNamespace = "default"
 )
 
 func TestPkg(t *testing.T) {
@@ -68,6 +69,9 @@ var _ = BeforeSuite(
 		Expect(k8sClient).NotTo(BeNil())
 
 		err = testutils.CreateNamespace(testCtx, k8sClient, namespace)
+		Expect(err).NotTo(HaveOccurred())
+
+		err = testutils.CreateNamespace(testCtx, k8sClient, defaultNamespace)
 		Expect(err).NotTo(HaveOccurred())
 	})
 
