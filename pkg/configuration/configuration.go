@@ -27,6 +27,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	runtimeConfig "sigs.k8s.io/controller-runtime/pkg/client/config"
 )
@@ -40,11 +42,13 @@ type Parameters struct {
 	AllNamespaces bool
 }
 
-func NewParams(ctx context.Context, namespaces []string, allNamespaces, clusterScope bool) (*Parameters, error) {
+func NewParams(ctx context.Context, kubeconfigPath string, namespaces []string, allNamespaces,
+	clusterScope bool,
+) (*Parameters, error) {
 	logger := InitializeConsoleLogger()
 	logger.Info("Initialized logger")
 
-	k8sClient, clientSet, err := createKubeClients()
+	k8sClient, clientSet, err := createKubeClients(kubeconfigPath)
 	if err != nil {
 		return nil, err
 	}
@@ -66,20 +70,31 @@ func NewParams(ctx context.Context, namespaces []string, allNamespaces, clusterS
 	return params, nil
 }
 
-func createKubeClients() (client.Client, *kubernetes.Clientset, error) {
-	scheme := runtime.NewScheme()
-	cfg := runtimeConfig.GetConfigOrDie()
+func createKubeClients(kubeconfigPath string) (k8sClient client.Client, clientSet *kubernetes.Clientset, err error) {
+	var cfg *rest.Config
 
-	if err := clientgoscheme.AddToScheme(scheme); err != nil {
-		return nil, nil, err
+	if kubeconfigPath != "" {
+		cfg, err = clientcmd.BuildConfigFromFlags("", kubeconfigPath)
+		if err != nil {
+			return nil, nil, err
+		}
+	} else {
+		cfg = runtimeConfig.GetConfigOrDie()
 	}
 
-	k8sClient, err := client.New(cfg, client.Options{Scheme: scheme})
+	scheme := runtime.NewScheme()
+
+	err = clientgoscheme.AddToScheme(scheme)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	clientSet, err := kubernetes.NewForConfig(cfg)
+	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	clientSet, err = kubernetes.NewForConfig(cfg)
 	if err != nil {
 		return nil, nil, err
 	}

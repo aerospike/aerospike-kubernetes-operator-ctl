@@ -39,7 +39,7 @@ var collectinfoCmd = &cobra.Command{
 * events logs.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.TODO()
-		params, err := configuration.NewParams(ctx, namespaces, allNamespaces, clusterScope)
+		params, err := configuration.NewParams(ctx, kubeconfig, namespaces, allNamespaces, clusterScope)
 		if err != nil {
 			return err
 		}

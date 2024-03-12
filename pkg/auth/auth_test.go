@@ -60,6 +60,16 @@ var _ = Describe("Auth", func() {
 			testDeleteRbac([]string{namespace}, true, true)
 		})
 	})
+
+	Context("Wrong kubeconfig path", func() {
+		It("Should fail when wrong kubeconfig path is given", func() {
+			_, err := configuration.NewParams(testCtx, "wrongpath", []string{namespace},
+				false, false)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("wrongpath: no such file or directory"))
+		})
+	})
+
 })
 
 func testCreateRbac(namespaces []string, clusterScope bool) {
