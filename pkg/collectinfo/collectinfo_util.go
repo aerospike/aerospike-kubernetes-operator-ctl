@@ -506,6 +506,7 @@ func compress(src string, buf io.Writer) error {
 			if fileErr != nil {
 				return fileErr
 			}
+
 			if _, fileErr := io.Copy(tw, data); fileErr != nil {
 				return fileErr
 			}
