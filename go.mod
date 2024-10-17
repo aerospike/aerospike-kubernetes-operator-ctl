@@ -1,8 +1,6 @@
 module github.com/aerospike/aerospike-kubernetes-operator-ctl
 
-go 1.21
-
-toolchain go1.21.8
+go 1.22
 
 require (
 	github.com/onsi/ginkgo/v2 v2.16.0
@@ -63,3 +61,6 @@ require (
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.1 // indirect
 )
+
+// Fixing vulnerability SNYK-GOLANG-GITHUBCOMSIRUPSENLOGRUS-5564391
+replace github.com/sirupsen/logrus => github.com/sirupsen/logrus v1.9.1
