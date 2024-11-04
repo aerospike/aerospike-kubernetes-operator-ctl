@@ -17,15 +17,21 @@ package internal
 
 const (
 	// Namespace scope resources
-	PodKind              = "Pod"
-	STSKind              = "StatefulSet"
-	DeployKind           = "Deployment"
-	ServiceAccountKind   = "ServiceAccount"
-	ServiceKind          = "Service"
-	AerospikeClusterKind = "AerospikeCluster"
-	PVCKind              = "PersistentVolumeClaim"
-	EventKind            = "Event"
-	RoleBindingKind      = "RoleBinding"
+	PodKind                    = "Pod"
+	STSKind                    = "StatefulSet"
+	RSKind                     = "ReplicaSet"
+	DeployKind                 = "Deployment"
+	ServiceAccountKind         = "ServiceAccount"
+	ServiceKind                = "Service"
+	AerospikeClusterKind       = "AerospikeCluster"
+	PVCKind                    = "PersistentVolumeClaim"
+	EventKind                  = "Event"
+	RoleBindingKind            = "RoleBinding"
+	AerospikeBackupKind        = "AerospikeBackup"
+	AerospikeRestoreKind       = "AerospikeRestore"
+	AerospikeBackupServiceKind = "AerospikeBackupService"
+	PodDisruptionBudgetKind    = "PodDisruptionBudget"
+	ConfigMapKind              = "ConfigMap"
 
 	// Cluster scope resources
 	NodeKind               = "Node"

@@ -33,7 +33,9 @@ var collectinfoCmd = &cobra.Command{
 	Use:   "collectinfo",
 	Short: "collectinfo command collects all the required info from kubernetes cluster",
 	Long: `This command collects the following data from the given namespaces:
-* pods, statefulsets, persistentvolumeclaims, aerospikeclusters, nodes, storageclasses objects.
+* pods, statefulsets, deployments, persistentvolumeclaims, aerospikeclusters, aerospikebackupservices, 
+* aerospikebackups, aerospikerestores, configmaps, replicasets, poddisruptionbudgets, services,
+* nodes, storageclasses, persistentvolumes objects.
 * mutating and validating webhooks configurations.
 * containers logs.
 * events logs.`,
