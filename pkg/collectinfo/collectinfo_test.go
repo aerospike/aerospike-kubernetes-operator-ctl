@@ -59,7 +59,6 @@ const (
 	aerospikeRestoreName       = "test-aerorestore"
 	pdbName                    = "test-pdb"
 	cmName                     = "test-cm"
-	rsName                     = "test-rs"
 )
 
 var (
@@ -107,8 +106,6 @@ var filesList = map[string]bool{
 		pdbName+collectinfo.FileSuffix): false,
 	filepath.Join(namespaceScopeDir, namespace, collectinfo.KindDirNames[internal.ConfigMapKind],
 		cmName+collectinfo.FileSuffix): false,
-	filepath.Join(namespaceScopeDir, namespace, collectinfo.KindDirNames[internal.RSKind],
-		rsName+collectinfo.FileSuffix): false,
 	filepath.Join(namespaceScopeDir, namespace, collectinfo.SummaryDir,
 		collectinfo.SummaryFile): false,
 	filepath.Join(collectinfo.RootOutputDir,
@@ -251,85 +248,36 @@ var _ = Describe("collectInfo", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			gvk := schema.GroupVersionKind{
-				Group:   "asdb.aerospike.com",
+				Group:   internal.Group,
 				Version: "v1",
 				Kind:    internal.AerospikeClusterKind,
 			}
 
-			u := &unstructured.Unstructured{}
-			u.SetName(aerospikeClusterName)
-			u.SetNamespace(namespace)
-			u.SetGroupVersionKind(gvk)
-
-			err = k8sClient.Create(context.TODO(), u)
-			Expect(err).ToNot(HaveOccurred())
+			createUnstructuredObject(aerospikeClusterName, namespace, gvk)
 
 			gvk = schema.GroupVersionKind{
-				Group:   "asdb.aerospike.com",
-				Version: "v1beta1",
+				Group:   internal.Group,
+				Version: internal.BetaVersion,
 				Kind:    internal.AerospikeBackupServiceKind,
 			}
 
-			u = &unstructured.Unstructured{}
-			u.SetName(aerospikeBackupServiceName)
-			u.SetNamespace(namespace)
-			u.SetGroupVersionKind(gvk)
-
-			err = k8sClient.Create(context.TODO(), u)
-			Expect(err).ToNot(HaveOccurred())
+			createUnstructuredObject(aerospikeBackupServiceName, namespace, gvk)
 
 			gvk = schema.GroupVersionKind{
-				Group:   "asdb.aerospike.com",
-				Version: "v1beta1",
+				Group:   internal.Group,
+				Version: internal.BetaVersion,
 				Kind:    internal.AerospikeBackupKind,
 			}
 
-			u = &unstructured.Unstructured{}
-			u.SetName(aerospikeBackupName)
-			u.SetNamespace(namespace)
-			u.SetGroupVersionKind(gvk)
-
-			err = k8sClient.Create(context.TODO(), u)
-			Expect(err).ToNot(HaveOccurred())
+			createUnstructuredObject(aerospikeBackupName, namespace, gvk)
 
 			gvk = schema.GroupVersionKind{
-				Group:   "asdb.aerospike.com",
-				Version: "v1beta1",
+				Group:   internal.Group,
+				Version: internal.BetaVersion,
 				Kind:    internal.AerospikeRestoreKind,
 			}
 
-			u = &unstructured.Unstructured{}
-			u.SetName(aerospikeRestoreName)
-			u.SetNamespace(namespace)
-			u.SetGroupVersionKind(gvk)
-
-			err = k8sClient.Create(context.TODO(), u)
-			Expect(err).ToNot(HaveOccurred())
-
-			rs := &appsv1.ReplicaSet{
-				ObjectMeta: metav1.ObjectMeta{Name: rsName, Namespace: namespace},
-				Spec: appsv1.ReplicaSetSpec{
-					Selector: &metav1.LabelSelector{
-						MatchLabels: map[string]string{"app": "t1", "s2iBuilder": "t1-s2i-1x55", "version": "v1"},
-					},
-					Template: corev1.PodTemplateSpec{
-						ObjectMeta: metav1.ObjectMeta{
-							Labels: map[string]string{"app": "t1", "s2iBuilder": "t1-s2i-1x55", "version": "v1"},
-						},
-						Spec: corev1.PodSpec{
-							Containers: []corev1.Container{
-								{
-									Name:  containerName,
-									Image: "nginx:1.12",
-								},
-							},
-						},
-					},
-				},
-			}
-
-			err = k8sClient.Create(context.TODO(), rs, createOption)
-			Expect(err).ToNot(HaveOccurred())
+			createUnstructuredObject(aerospikeRestoreName, namespace, gvk)
 
 			maxUnavailable := intstr.FromInt32(1)
 			pdb := &policyv1.PodDisruptionBudget{
@@ -424,4 +372,14 @@ func validateAndDeleteTar(srcFile string, filesList map[string]bool) error {
 	}
 
 	return os.Remove(srcFile)
+}
+
+func createUnstructuredObject(name, namespace string, gvk schema.GroupVersionKind) {
+	u := &unstructured.Unstructured{}
+	u.SetName(name)
+	u.SetNamespace(namespace)
+	u.SetGroupVersionKind(gvk)
+
+	err := k8sClient.Create(context.TODO(), u)
+	Expect(err).ToNot(HaveOccurred())
 }

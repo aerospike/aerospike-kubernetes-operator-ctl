@@ -19,7 +19,6 @@ const (
 	// Namespace scope resources
 	PodKind                    = "Pod"
 	STSKind                    = "StatefulSet"
-	RSKind                     = "ReplicaSet"
 	DeployKind                 = "Deployment"
 	ServiceAccountKind         = "ServiceAccount"
 	ServiceKind                = "Service"
@@ -41,4 +40,7 @@ const (
 	ValidatingWebhookKind  = "ValidatingWebhookConfiguration"
 	ClusterRoleKind        = "ClusterRole"
 	ClusterRoleBindingKind = "ClusterRoleBinding"
+
+	Group       = "asdb.aerospike.com"
+	BetaVersion = "v1beta1"
 )
