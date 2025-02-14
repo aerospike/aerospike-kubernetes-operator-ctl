@@ -32,11 +32,17 @@ var (
 var collectinfoCmd = &cobra.Command{
 	Use:   "collectinfo",
 	Short: "collectinfo command collects all the required info from kubernetes cluster",
-	Long: `This command collects the following data from the given namespaces:
-* pods, statefulsets, persistentvolumeclaims, aerospikeclusters, nodes, storageclasses objects.
-* mutating and validating webhooks configurations.
-* containers logs.
-* events logs.`,
+	Long: `This command collects:
+Following resources from the given namespaces:
+* pods, statefulsets, deployments, persistentvolumeclaims, aerospikeclusters, 
+aerospikebackupservices, aerospikebackups, aerospikerestores, configmaps, 
+poddisruptionbudgets and services.
+
+Following resources from the cluster:
+* nodes, storageclasses, persistentvolumes, mutatingwebhookconfigurations
+and validatingwebhookconfigurations.
+
+Containers logs and events logs.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.TODO()
 		params, err := configuration.NewParams(ctx, kubeconfig, namespaces, allNamespaces, clusterScope)

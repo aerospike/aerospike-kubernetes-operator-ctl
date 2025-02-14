@@ -19,6 +19,7 @@ import (
 	admissionv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	v1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
@@ -27,30 +28,52 @@ import (
 
 var (
 	KindDirNames = map[string]string{
-		internal.NodeKind:              "nodes",
-		internal.PVCKind:               "persistentvolumeclaims",
-		internal.PVKind:                "persistentvolumes",
-		internal.STSKind:               "statefulsets",
-		internal.DeployKind:            "deployments",
-		internal.SCKind:                "storageclasses",
-		internal.AerospikeClusterKind:  "aerospikeclusters",
-		internal.PodKind:               "pods",
-		internal.EventKind:             "events",
-		internal.MutatingWebhookKind:   "mutatingwebhookconfigurations",
-		internal.ValidatingWebhookKind: "validatingwebhookconfigurations",
-		internal.ServiceKind:           "services",
+		internal.NodeKind:                   "nodes",
+		internal.PVCKind:                    "persistentvolumeclaims",
+		internal.PVKind:                     "persistentvolumes",
+		internal.STSKind:                    "statefulsets",
+		internal.DeployKind:                 "deployments",
+		internal.SCKind:                     "storageclasses",
+		internal.AerospikeClusterKind:       "aerospikeclusters",
+		internal.PodKind:                    "pods",
+		internal.EventKind:                  "events",
+		internal.MutatingWebhookKind:        "mutatingwebhookconfigurations",
+		internal.ValidatingWebhookKind:      "validatingwebhookconfigurations",
+		internal.ServiceKind:                "services",
+		internal.AerospikeBackupServiceKind: "aerospikebackupservices",
+		internal.AerospikeBackupKind:        "aerospikebackups",
+		internal.AerospikeRestoreKind:       "aerospikerestores",
+		internal.PodDisruptionBudgetKind:    "poddisruptionbudgets",
+		internal.ConfigMapKind:              "configmaps",
 	}
 	gvkListNSScoped = []schema.GroupVersionKind{
 		{
-			Group:   "asdb.aerospike.com",
+			Group:   internal.Group,
 			Version: "v1",
 			Kind:    internal.AerospikeClusterKind,
+		},
+		{
+			Group:   internal.Group,
+			Version: internal.BetaVersion,
+			Kind:    internal.AerospikeBackupServiceKind,
+		},
+		{
+			Group:   internal.Group,
+			Version: internal.BetaVersion,
+			Kind:    internal.AerospikeBackupKind,
+		},
+		{
+			Group:   internal.Group,
+			Version: internal.BetaVersion,
+			Kind:    internal.AerospikeRestoreKind,
 		},
 		appsv1.SchemeGroupVersion.WithKind(internal.STSKind),
 		appsv1.SchemeGroupVersion.WithKind(internal.DeployKind),
 		corev1.SchemeGroupVersion.WithKind(internal.PodKind),
 		corev1.SchemeGroupVersion.WithKind(internal.PVCKind),
 		corev1.SchemeGroupVersion.WithKind(internal.ServiceKind),
+		policyv1.SchemeGroupVersion.WithKind(internal.PodDisruptionBudgetKind),
+		corev1.SchemeGroupVersion.WithKind(internal.ConfigMapKind),
 	}
 	gvkListClusterScoped = []schema.GroupVersionKind{
 		corev1.SchemeGroupVersion.WithKind(internal.NodeKind),
