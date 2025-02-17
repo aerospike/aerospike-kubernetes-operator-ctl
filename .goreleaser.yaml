@@ -16,19 +16,20 @@ builds:
     binary: akoctl
 
 archives:
-  - format: tar.gz
+  - formats: [ 'tar.gz' ]
     # this name template makes the OS and Arch compatible with the results of uname.
     name_template: >-
       akoctl_{{ .Tag }}_{{ .Os }}_{{ .Arch -}}
     # use zip for windows archives
     format_overrides:
-    - goos: windows
-      format: zip
+      - goos: windows
+        formats: [ 'zip' ]
 checksum:
   name_template: 'checksums.txt'
 snapshot:
-  name_template: "{{ incpatch .Version }}-next"
+  version_template: "{{ incpatch .Version }}-next"
 changelog:
-  skip: true
+  disable: true
 release:
-  prerelease: true
+  prerelease: 'true'
+version: 2
