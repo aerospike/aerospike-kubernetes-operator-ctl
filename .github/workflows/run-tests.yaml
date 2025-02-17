@@ -1,4 +1,4 @@
-name: Run Tests
+name: tests
 on:
   push:
     tags:
@@ -11,7 +11,7 @@ on:
 
 jobs:
   run-tests:
-    name: Run Tests
+    name: env-test
     runs-on: ubuntu-latest
     steps:
       - name: Setup-go
