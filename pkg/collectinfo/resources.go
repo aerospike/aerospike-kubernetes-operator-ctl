@@ -21,6 +21,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	policyv1 "k8s.io/api/policy/v1"
 	v1 "k8s.io/api/storage/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/aerospike/aerospike-kubernetes-operator-ctl/pkg/internal"
@@ -45,6 +46,7 @@ var (
 		internal.AerospikeRestoreKind:       "aerospikerestores",
 		internal.PodDisruptionBudgetKind:    "poddisruptionbudgets",
 		internal.ConfigMapKind:              "configmaps",
+		internal.CRDKind:                    "customresourcedefinitions",
 	}
 	gvkListNSScoped = []schema.GroupVersionKind{
 		{
@@ -81,5 +83,6 @@ var (
 		corev1.SchemeGroupVersion.WithKind(internal.PVKind),
 		admissionv1.SchemeGroupVersion.WithKind(internal.MutatingWebhookKind),
 		admissionv1.SchemeGroupVersion.WithKind(internal.ValidatingWebhookKind),
+		apiextensionsv1.SchemeGroupVersion.WithKind(internal.CRDKind),
 	}
 )

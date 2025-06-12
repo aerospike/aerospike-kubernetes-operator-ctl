@@ -6,15 +6,15 @@ $(LOCALBIN):
 	mkdir -p $(LOCALBIN)
 
 GOLANGCI_LINT ?= $(LOCALBIN)/golangci-lint
-GOLANGCI_LINT_VERSION ?= v1.60.1
+GOLANGCI_LINT_VERSION ?= v1.60.2
 ENVTEST_K8S_VERSION = 1.31.0
 
-.PHONY: golanci-lint
-golanci-lint: $(GOLANGCI_LINT) ## Download golangci-lint locally if necessary.
+.PHONY: golangci-lint
+golangci-lint: $(GOLANGCI_LINT) ## Download golangci-lint locally if necessary.
 $(GOLANGCI_LINT): $(LOCALBIN)
 	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(LOCALBIN) $(GOLANGCI_LINT_VERSION)
 
-go-lint: golanci-lint ## Run golangci-lint against code.
+go-lint: golangci-lint ## Run golangci-lint against code.
 	$(GOLANGCI_LINT) run
 
 test: envtest ## Run tests.
