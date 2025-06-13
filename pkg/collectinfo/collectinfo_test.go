@@ -116,8 +116,6 @@ var filesList = map[string]bool{
 		cmName+collectinfo.FileSuffix): false,
 	filepath.Join(namespaceScopeDir, namespace, collectinfo.SummaryDir,
 		collectinfo.SummaryFile): false,
-	filepath.Join(namespaceScopeDir, namespace, collectinfo.SummaryDir,
-		collectinfo.EventsFile): false,
 	filepath.Join(collectinfo.RootOutputDir,
 		collectinfo.LogFileName): false,
 }
