@@ -40,6 +40,7 @@ const (
 	ValidatingWebhookKind  = "ValidatingWebhookConfiguration"
 	ClusterRoleKind        = "ClusterRole"
 	ClusterRoleBindingKind = "ClusterRoleBinding"
+	CRDKind                = "CustomResourceDefinition"
 
 	Group       = "asdb.aerospike.com"
 	BetaVersion = "v1beta1"

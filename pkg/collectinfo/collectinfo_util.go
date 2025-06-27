@@ -52,8 +52,8 @@ const (
 	ClusterScopedDir        = "k8s_cluster"
 	LogFileName             = "akoctl.log"
 	FileSuffix              = ".yaml"
-	MutatingWebhookPrefix   = "maerospikecluster.kb.io"
-	ValidatingWebhookPrefix = "vaerospikecluster.kb.io"
+	MutatingWebhookPrefix   = "maerospike"
+	ValidatingWebhookPrefix = "vaerospike"
 	MutatingWebhookName     = "aerospike-operator-mutating-webhook-configuration"
 	ValidatingWebhookName   = "aerospike-operator-validating-webhook-configuration"
 	SummaryDir              = "summary"
@@ -210,6 +210,11 @@ func captureObject(logger *zap.Logger, k8sClient client.Client, gvk schema.Group
 			if !(strings.HasPrefix(name, MutatingWebhookPrefix) || name == MutatingWebhookName) {
 				continue
 			}
+		case internal.CRDKind:
+			// Skip CRDs that are not related to Aerospike
+			if !strings.HasSuffix(u.Items[idx].GetName(), internal.Group) {
+				continue
+			}
 		}
 
 		if err := serializeAndWrite(u.Items[idx], objOutputDir); err != nil {
@@ -272,6 +277,8 @@ func captureSummary(logger *zap.Logger, ns, rootOutputPath string) error {
 			out = filterWebhooks(out)
 		case internal.ValidatingWebhookKind:
 			out = filterWebhooks(out)
+		case internal.CRDKind:
+			out = filterCRDs(out)
 		case internal.EventKind:
 			events = out
 			continue
@@ -334,6 +341,21 @@ func filterWebhooks(out []byte) (finalOut []byte) {
 				finalOut = append(finalOut, o...)
 				finalOut = append(finalOut, []byte("\n")...)
 			}
+		}
+	}
+
+	return finalOut
+}
+
+func filterCRDs(out []byte) (finalOut []byte) {
+	outList := bytes.Split(out, []byte("\n"))
+	crdNameHeader := []byte("NAME")
+	crdSuffix := []byte(internal.Group)
+
+	for _, o := range outList {
+		if bytes.Contains(o, crdSuffix) || bytes.Contains(o, crdNameHeader) {
+			finalOut = append(finalOut, o...)
+			finalOut = append(finalOut, []byte("\n")...)
 		}
 	}
 
@@ -527,7 +549,7 @@ func compress(src string, buf io.Writer) error {
 }
 
 func serializeAndWrite(obj unstructured.Unstructured, objOutputDir string) error {
-	clusterData, err := yaml.Marshal(obj)
+	clusterData, err := yaml.Marshal(obj.Object)
 	if err != nil {
 		return err
 	}
