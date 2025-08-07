@@ -39,8 +39,8 @@ aerospikebackupservices, aerospikebackups, aerospikerestores, configmaps,
 poddisruptionbudgets and services.
 
 Following resources from the cluster:
-* nodes, storageclasses, persistentvolumes, mutatingwebhookconfigurations
-and validatingwebhookconfigurations.
+* nodes, storageclasses, persistentvolumes, mutatingwebhookconfigurations, 
+validatingwebhookconfigurations and customresourcedefinitions.
 
 Containers logs and events logs.`,
 	RunE: func(cmd *cobra.Command, args []string) error {

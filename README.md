@@ -67,12 +67,13 @@ Flag associated with this command:
 
 This command collects the following data from the specified namespaces:
 
-* Pods, StatefulSets, Deployments, PersistentVolumeClaims, PersistentVolumes, Services, AerospikeCluster objects .
+* Pods, StatefulSets, Deployments, PersistentVolumeClaims, Services, ConfigMaps, PodDisruptionBudgets.
+* AerospikeCluster, AerospikeBackupService, AerospikeBackup, AerospikeRestore objects.
 * Container logs.
 * Event logs.
 
 Additionally, the following cluster-wide data points are collected:
-* Storage class objects.
+* Storage class, PersistentVolume (corresponding to namespace PVCs), CustomResourceDefinition objects.
 * Configurations of all nodes in the kubernetes cluster.
 * Configurations of aerospike mutating and validating webhooks.
 
@@ -95,12 +96,20 @@ akoctl_collectinfo
 │       ├── <validatingwebhook name>.yaml
 │   └── persistentvolumes
 │       ├── <persistentvolume name>.yaml
+│   └── customresourcedefinitions
+│       ├── <customresourcedefinition name>.yaml 
 │   └── summary
 │       ├── summary.txt
 └── k8s_namespaces
     └── aerospike
         ├── aerospikeclusters
         │   ├── <aerospikecluster name>.yaml
+        ├── aerospikebackupservices
+        │   ├── <aerospikebackupservice name>.yaml
+        ├── aerospikebackups
+        │   ├── <aerospikebackup name>.yaml
+        ├── aerospikerestores
+        │   ├── <aerospikerestore name>.yaml
         ├── persistentvolumeclaims
         │   ├── <pvc name>.yaml
         ├── pods
@@ -116,6 +125,10 @@ akoctl_collectinfo
         │   ├── <deployment name>.yaml
         └── services
         │   ├── <service name>.yaml
+        └── configmaps
+        │   ├── <configmap name>.yaml
+        └── poddisruptionbudgets
+        │   ├── <poddisruptionbudget name>.yaml
         └── summary
         │   ├── summary.txt
         │   ├── events.txt
