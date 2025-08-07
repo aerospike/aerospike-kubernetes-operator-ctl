@@ -73,7 +73,7 @@ This command collects the following data from the specified namespaces:
 * Event logs.
 
 Additionally, the following cluster-wide data points are collected:
-* Storage class, PersistentVolume, CustomResourceDefinition objects.
+* Storage class, PersistentVolume (corresponding to namespace PVCs), CustomResourceDefinition objects.
 * Configurations of all nodes in the kubernetes cluster.
 * Configurations of aerospike mutating and validating webhooks.
 
