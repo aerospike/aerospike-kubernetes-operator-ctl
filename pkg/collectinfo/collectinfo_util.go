@@ -167,6 +167,7 @@ func captureObject(logger *zap.Logger, k8sClient client.Client, gvk schema.Group
 			if listErr := k8sClient.List(context.TODO(), u, listOps); listErr != nil {
 				logger.Error("Not able to list ",
 					zap.String("kind", gvk.Kind), zap.String("version", gvk.Version), zap.Error(listErr))
+
 				return err
 			}
 		} else {
@@ -178,6 +179,7 @@ func captureObject(logger *zap.Logger, k8sClient client.Client, gvk schema.Group
 	if len(u.Items) == 0 {
 		logger.Info("No resource found in namespace", zap.String("kind", gvk.Kind),
 			zap.String("namespace", ns))
+
 		return nil
 	}
 
@@ -202,12 +204,12 @@ func captureObject(logger *zap.Logger, k8sClient client.Client, gvk schema.Group
 			}
 		case internal.ValidatingWebhookKind:
 			name := u.Items[idx].GetName()
-			if !(strings.HasPrefix(name, ValidatingWebhookPrefix) || name == ValidatingWebhookName) {
+			if !strings.HasPrefix(name, ValidatingWebhookPrefix) && name != ValidatingWebhookName {
 				continue
 			}
 		case internal.MutatingWebhookKind:
 			name := u.Items[idx].GetName()
-			if !(strings.HasPrefix(name, MutatingWebhookPrefix) || name == MutatingWebhookName) {
+			if !strings.HasPrefix(name, MutatingWebhookPrefix) && name != MutatingWebhookName {
 				continue
 			}
 		case internal.CRDKind:
@@ -394,6 +396,7 @@ func capturePodLogs(ctx context.Context, logger *zap.Logger, clientSet *kubernet
 	if len(pods.Items) == 0 {
 		logger.Info("No resource found in namespace", zap.String("kind", "Pod"),
 			zap.String("namespace", ns))
+
 		return nil
 	}
 
@@ -460,6 +463,7 @@ func captureContainerLogs(logger *zap.Logger, clientSet *kubernetes.Clientset, p
 		if apierrors.IsBadRequest(reqErr) && previous {
 			logger.Debug("Previous container's logs not found ", zap.String("container", containerName),
 				zap.Error(reqErr))
+
 			return nil
 		}
 
@@ -507,7 +511,8 @@ func compress(src string, buf io.Writer) error {
 	tw := tar.NewWriter(zr)
 	// walk through every file in the folder
 	rootOutputPath := filepath.Join(src, RootOutputDir)
-	err := filepath.Walk(rootOutputPath, func(file string, fi os.FileInfo, err error) error {
+
+	err := filepath.Walk(rootOutputPath, func(file string, fi os.FileInfo, _ error) error {
 		// generate tar header
 		header, fileErr := tar.FileInfoHeader(fi, file)
 		if fileErr != nil {
@@ -536,7 +541,6 @@ func compress(src string, buf io.Writer) error {
 
 		return nil
 	})
-
 	if err != nil {
 		return err
 	}

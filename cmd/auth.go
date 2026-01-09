@@ -39,7 +39,7 @@ var authCreateCmd = &cobra.Command{
 	Long: `This command will create RBAC resources for Aerospike cluster for the given 
 namespaces.
 It creates ServiceAccount, RoleBinding or ClusterRoleBinding as per given scope`,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		ctx := context.TODO()
 		params, err := configuration.NewParams(ctx, kubeconfig, namespaces, allNamespaces, clusterScope)
 		if err != nil {
@@ -56,7 +56,7 @@ var authDeleteCmd = &cobra.Command{
 	Long: `This command will delete RBAC resources for Aerospike cluster for the given 
 namespaces.
 It deletes ServiceAccount, RoleBinding or ClusterRoleBinding as per given scope`,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(_ *cobra.Command, args []string) error {
 		ctx := context.TODO()
 		params, err := configuration.NewParams(ctx, kubeconfig, namespaces, allNamespaces, clusterScope)
 		if err != nil {
