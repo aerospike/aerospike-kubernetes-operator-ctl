@@ -3,7 +3,7 @@ kind: Plugin
 metadata:
   name: akoctl
 spec:
-  version: v1.2.0
+  version: v1.2.1
   homepage: https://github.com/aerospike/aerospike-kubernetes-operator-ctl
   shortDescription: This is a command line tool for Aerospike kubernetes operator.
   description: |
@@ -13,41 +13,41 @@ spec:
         matchLabels:
           os: darwin
           arch: amd64
-      uri: https://github.com/aerospike/aerospike-kubernetes-operator-ctl/releases/download/v1.2.0/akoctl_v1.2.0_darwin_amd64.tar.gz
-      sha256: 8c1384ae10479e7af125504c77e077365c4f1bd606849e77a474bfd298ec78c9
+      uri: https://github.com/aerospike/aerospike-kubernetes-operator-ctl/releases/download/v1.2.1/akoctl_v1.2.1_darwin_amd64.tar.gz
+      sha256: 75bb31b4e32cd3501e4fc0d8965ebfbe24da62799bbd76a3504e9367c87e0a0c
       bin: akoctl
     - selector:
         matchLabels:
           os: darwin
           arch: arm64
-      uri: https://github.com/aerospike/aerospike-kubernetes-operator-ctl/releases/download/v1.2.0/akoctl_v1.2.0_darwin_arm64.tar.gz
-      sha256: f7f88fba994a8272a043e62319bd19079182c13de3629c09dde19c6ae72ec8c4
+      uri: https://github.com/aerospike/aerospike-kubernetes-operator-ctl/releases/download/v1.2.1/akoctl_v1.2.1_darwin_arm64.tar.gz
+      sha256: e6059d366f57c80418dbcdbfacf064fc733f8c01459849463bd544253d65fb18
       bin: akoctl
     - selector:
         matchLabels:
           os: linux
           arch: amd64
-      uri: https://github.com/aerospike/aerospike-kubernetes-operator-ctl/releases/download/v1.2.0/akoctl_v1.2.0_linux_amd64.tar.gz
-      sha256: 444a00893b5c1fd142abf5f316b6c4af73e2954be4fb83d0cebfe032a523e539
+      uri: https://github.com/aerospike/aerospike-kubernetes-operator-ctl/releases/download/v1.2.1/akoctl_v1.2.1_linux_amd64.tar.gz
+      sha256: e1756f0b5183afe5bcec276e22a6e7826147018827229f337beb1e248573e4cd
       bin: akoctl
     - selector:
         matchLabels:
           os: linux
           arch: arm64
-      uri: https://github.com/aerospike/aerospike-kubernetes-operator-ctl/releases/download/v1.2.0/akoctl_v1.2.0_linux_arm64.tar.gz
-      sha256: c057cbe777932836da558d16fcc1e4bf4509b7d27b98551fb40e6e9e24381f7f
+      uri: https://github.com/aerospike/aerospike-kubernetes-operator-ctl/releases/download/v1.2.1/akoctl_v1.2.1_linux_arm64.tar.gz
+      sha256: 1382d841343ef9b4349632f9c4302620ef71f078a4bb6eac553e10321adb181b
       bin: akoctl
     - selector:
         matchLabels:
           os: windows
           arch: amd64
-      uri: https://github.com/aerospike/aerospike-kubernetes-operator-ctl/releases/download/v1.2.0/akoctl_v1.2.0_windows_amd64.zip
-      sha256: 186e2c7d2e6c5f8ba5625a35a681776047598103d372f545b2a2de80d3d78115
+      uri: https://github.com/aerospike/aerospike-kubernetes-operator-ctl/releases/download/v1.2.1/akoctl_v1.2.1_windows_amd64.zip
+      sha256: b247e3470275880f2ad7b1464f4b9d7da53a28f216bb2a8802fcfc90c46993f4
       bin: akoctl.exe
     - selector:
         matchLabels:
           os: windows
           arch: arm64
-      uri: https://github.com/aerospike/aerospike-kubernetes-operator-ctl/releases/download/v1.2.0/akoctl_v1.2.0_windows_arm64.zip
-      sha256: 386a7c3e0c5b23f011faf220d36968143711d1c768f3963d5ca76d3bf54a9d60
+      uri: https://github.com/aerospike/aerospike-kubernetes-operator-ctl/releases/download/v1.2.1/akoctl_v1.2.1_windows_arm64.zip
+      sha256: e2040eee4ec58d79661050f7da2f08f312d78f08f08a4f17a553f0a098575f6b
       bin: akoctl.exe
