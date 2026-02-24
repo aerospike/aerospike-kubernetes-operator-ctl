@@ -51,6 +51,7 @@ var _ = BeforeSuite(
 		logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
 
 		By("Bootstrapping test environment")
+
 		testEnv = &envtest.Environment{}
 
 		cfg, err := testEnv.Start()
@@ -79,6 +80,7 @@ var _ = AfterSuite(
 	func() {
 		By("Tearing down the test environment")
 		gexec.KillAndWait(5 * time.Second)
+
 		err := testEnv.Stop()
 		Expect(err).ToNot(HaveOccurred())
 	},

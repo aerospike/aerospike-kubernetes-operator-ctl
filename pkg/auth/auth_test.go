@@ -34,7 +34,6 @@ var _ = Describe("Auth", func() {
 		It("Should create and delete namespace level RBAC", func() {
 			testCreateRbac([]string{namespace}, false)
 			testDeleteRbac([]string{namespace}, false, true)
-
 		})
 
 		It("Should create and delete cluster level RBAC", func() {
@@ -49,6 +48,7 @@ var _ = Describe("Auth", func() {
 			testCreateRbac([]string{namespace}, true)
 
 			By("Creating RBAC for default namespace")
+
 			defaultNs := "default"
 			testCreateRbac([]string{defaultNs}, true)
 
@@ -69,7 +69,6 @@ var _ = Describe("Auth", func() {
 			Expect(err.Error()).To(ContainSubstring("wrongpath: no such file or directory"))
 		})
 	})
-
 })
 
 func testCreateRbac(namespaces []string, clusterScope bool) {

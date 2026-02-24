@@ -56,10 +56,12 @@ var _ = BeforeSuite(
 		logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
 
 		By("Bootstrapping test environment")
+
 		testEnv = &envtest.Environment{
 			CRDDirectoryPaths:     []string{filepath.Join("..", "..", "config", "crd", "bases")},
 			ErrorIfCRDPathMissing: true,
 		}
+
 		var err error
 
 		cfg, err = testEnv.Start()
@@ -83,7 +85,7 @@ var _ = BeforeSuite(
 		Expect(k8sClient).NotTo(BeNil())
 
 		k8sClientSet = kubernetes.NewForConfigOrDie(cfg)
-		Expect(k8sClient).NotTo(BeNil())
+		Expect(k8sClientSet).NotTo(BeNil())
 
 		err = testutils.CreateNamespace(testCtx, k8sClient, namespace)
 		Expect(err).NotTo(HaveOccurred())
@@ -93,6 +95,7 @@ var _ = AfterSuite(
 	func() {
 		By("Tearing down the test environment")
 		gexec.KillAndWait(5 * time.Second)
+
 		err := testEnv.Stop()
 		Expect(err).ToNot(HaveOccurred())
 	},

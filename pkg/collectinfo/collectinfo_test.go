@@ -122,7 +122,6 @@ var filesList = map[string]bool{
 
 var _ = Describe("collectInfo", func() {
 	Context("When doing valid operations", func() {
-
 		createOption := &client.CreateOptions{}
 
 		It("Should create a tar file with all logs", func() {
@@ -198,6 +197,14 @@ var _ = Describe("collectInfo", func() {
 					Template: corev1.PodTemplateSpec{
 						ObjectMeta: metav1.ObjectMeta{
 							Labels: map[string]string{"app": "t1", "s2iBuilder": "t1-s2i-1x55", "version": "v1"},
+						},
+						Spec: corev1.PodSpec{
+							Containers: []corev1.Container{
+								{
+									Name:  containerName,
+									Image: "nginx:1.12",
+								},
+							},
 						},
 					},
 				},

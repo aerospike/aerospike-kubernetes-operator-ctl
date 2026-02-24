@@ -45,6 +45,7 @@ validatingwebhookconfigurations and customresourcedefinitions.
 Containers logs and events logs.`,
 	RunE: func(_ *cobra.Command, args []string) error {
 		ctx := context.TODO()
+
 		params, err := configuration.NewParams(ctx, kubeconfig, namespaces, allNamespaces, clusterScope)
 		if err != nil {
 			return err
