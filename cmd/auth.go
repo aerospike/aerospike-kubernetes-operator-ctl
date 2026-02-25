@@ -41,6 +41,7 @@ namespaces.
 It creates ServiceAccount, RoleBinding or ClusterRoleBinding as per given scope`,
 	RunE: func(_ *cobra.Command, args []string) error {
 		ctx := context.TODO()
+
 		params, err := configuration.NewParams(ctx, kubeconfig, namespaces, allNamespaces, clusterScope)
 		if err != nil {
 			return err
@@ -58,6 +59,7 @@ namespaces.
 It deletes ServiceAccount, RoleBinding or ClusterRoleBinding as per given scope`,
 	RunE: func(_ *cobra.Command, args []string) error {
 		ctx := context.TODO()
+
 		params, err := configuration.NewParams(ctx, kubeconfig, namespaces, allNamespaces, clusterScope)
 		if err != nil {
 			return err
