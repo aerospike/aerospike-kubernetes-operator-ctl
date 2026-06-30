@@ -30,15 +30,22 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	policyv1 "k8s.io/api/policy/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	v1 "k8s.io/api/storage/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/client-go/kubernetes"
+	clientscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aerospike/aerospike-kubernetes-operator-ctl/pkg/collectinfo"
+	"github.com/aerospike/aerospike-kubernetes-operator-ctl/pkg/configuration"
 	"github.com/aerospike/aerospike-kubernetes-operator-ctl/pkg/internal"
 	"github.com/aerospike/aerospike-kubernetes-operator-ctl/pkg/testutils"
 )
@@ -397,4 +404,341 @@ func createUnstructuredObject(name, namespace string, gvk schema.GroupVersionKin
 
 	err := k8sClient.Create(context.TODO(), u)
 	Expect(err).ToNot(HaveOccurred())
+}
+
+// The specs below exercise collectinfo scenario:
+//
+//	akoctl collectinfo -n <ns> --cluster-scope=false
+//
+// against a real API server with RBAC enforced, impersonating namespace-restricted
+// ServiceAccounts that lack the cluster-wide "list namespaces" permission.
+const (
+	rbacNS         = "cinfo-rbac-ns"
+	rbacNS2        = "cinfo-rbac-ns2"
+	restrictedSA   = "akoctl-restricted"    // namespaced reads + get-namespace (no list)
+	noNsPermSA     = "akoctl-no-ns-perm"    // namespaced reads only (no namespace perms at all)
+	missingReadsSA = "akoctl-missing-reads" // get-namespace only (no namespaced reads)
+	nsReaderCR     = "cinfo-ns-reader"
+	nsGetterCR     = "cinfo-ns-getter"
+)
+
+var _ = Describe("collectinfo under restricted RBAC", Ordered, func() {
+	var (
+		restrictedClient    client.Client
+		restrictedClientSet *kubernetes.Clientset
+		noNsPermClient      client.Client
+		noNsPermClientSet   *kubernetes.Clientset
+		missingReadsClient  client.Client
+		missingReadsCS      *kubernetes.Clientset
+	)
+
+	BeforeAll(func() {
+		By("Creating the target namespaces and seeding namespace-scoped objects")
+		Expect(testutils.CreateNamespace(testCtx, k8sClient, rbacNS)).To(Succeed())
+		Expect(testutils.CreateNamespace(testCtx, k8sClient, rbacNS2)).To(Succeed())
+		seedNamespacedObjects(rbacNS)
+		seedNamespacedObjects(rbacNS2)
+
+		By("Creating a ClusterRole that can read all namespace-scoped resources collectinfo captures")
+		Expect(k8sClient.Create(testCtx, &rbacv1.ClusterRole{
+			ObjectMeta: metav1.ObjectMeta{Name: nsReaderCR},
+			Rules: []rbacv1.PolicyRule{
+				{
+					APIGroups: []string{""},
+					Resources: []string{"pods", "pods/log", "services", "configmaps", "persistentvolumeclaims"},
+					Verbs:     []string{"get", "list"},
+				},
+				{
+					APIGroups: []string{"apps"},
+					Resources: []string{"statefulsets", "deployments"},
+					Verbs:     []string{"get", "list"},
+				},
+				{
+					APIGroups: []string{"policy"},
+					Resources: []string{"poddisruptionbudgets"},
+					Verbs:     []string{"get", "list"},
+				},
+				{
+					APIGroups: []string{internal.Group},
+					Resources: []string{"aerospikeclusters", "aerospikebackupservices",
+						"aerospikebackups", "aerospikerestores"},
+					Verbs: []string{"get", "list"},
+				},
+			},
+		})).To(Succeed())
+
+		By("Creating a ClusterRole that can GET a namespace but NOT LIST namespaces")
+		Expect(k8sClient.Create(testCtx, &rbacv1.ClusterRole{
+			ObjectMeta: metav1.ObjectMeta{Name: nsGetterCR},
+			Rules: []rbacv1.PolicyRule{
+				{
+					APIGroups: []string{""},
+					Resources: []string{"namespaces"},
+					Verbs:     []string{"get"},
+				},
+			},
+		})).To(Succeed())
+
+		By("Creating the ServiceAccounts")
+		for _, sa := range []string{restrictedSA, noNsPermSA, missingReadsSA} {
+			Expect(k8sClient.Create(testCtx, &corev1.ServiceAccount{
+				ObjectMeta: metav1.ObjectMeta{Name: sa, Namespace: rbacNS},
+			})).To(Succeed())
+		}
+
+		By("Binding the restricted SA: namespaced reads in both namespaces + cluster-wide get-namespace")
+		bindClusterRoleInNamespace(nsReaderCR, restrictedSA, rbacNS)
+		bindClusterRoleInNamespace(nsReaderCR, restrictedSA, rbacNS2)
+		bindClusterRoleClusterWide(nsGetterCR, restrictedSA, "restricted-ns-getter")
+
+		By("Binding the no-namespace-permission SA: namespaced reads only")
+		bindClusterRoleInNamespace(nsReaderCR, noNsPermSA, rbacNS)
+
+		By("Binding the missing-reads SA: get-namespace only, no namespaced reads")
+		bindClusterRoleClusterWide(nsGetterCR, missingReadsSA, "missing-reads-ns-getter")
+
+		By("Building impersonating clients for each identity")
+		restrictedClient, restrictedClientSet = impersonatingClients(rbacNS, restrictedSA)
+		noNsPermClient, noNsPermClientSet = impersonatingClients(rbacNS, noNsPermSA)
+		missingReadsClient, missingReadsCS = impersonatingClients(rbacNS, missingReadsSA)
+	})
+
+	// ---------- Happy paths ----------
+
+	It("lets a namespace-restricted SA run `collectinfo -n <ns> --cluster-scope=false`", func() {
+		By("Confirming the SA cannot list namespaces (the permission the old code required)")
+		Expect(apierrors.IsForbidden(
+			restrictedClient.List(testCtx, &corev1.NamespaceList{}))).To(BeTrue())
+
+		params, err := testutils.NewTestParams(
+			testCtx, restrictedClient, restrictedClientSet, []string{rbacNS}, false, false)
+		Expect(err).NotTo(HaveOccurred())
+
+		paths := runCollectInfo(params)
+
+		Expect(paths).To(ContainElement(ContainSubstring(
+			filepath.Join(collectinfo.NamespaceScopedDir, rbacNS, "configmaps", "rbac-cm.yaml"))))
+		Expect(paths).To(ContainElement(ContainSubstring(
+			filepath.Join(collectinfo.NamespaceScopedDir, rbacNS, "services", "rbac-svc.yaml"))))
+		By("Not collecting any cluster-scoped resources when --cluster-scope=false")
+		Expect(paths).NotTo(ContainElement(ContainSubstring(collectinfo.ClusterScopedDir)))
+	})
+
+	It("collects multiple namespaces with --cluster-scope=false", func() {
+		params, err := testutils.NewTestParams(
+			testCtx, restrictedClient, restrictedClientSet, []string{rbacNS, rbacNS2}, false, false)
+		Expect(err).NotTo(HaveOccurred())
+
+		paths := runCollectInfo(params)
+
+		Expect(paths).To(ContainElement(ContainSubstring(
+			filepath.Join(collectinfo.NamespaceScopedDir, rbacNS, "configmaps"))))
+		Expect(paths).To(ContainElement(ContainSubstring(
+			filepath.Join(collectinfo.NamespaceScopedDir, rbacNS2, "configmaps"))))
+	})
+
+	It("works for a pure namespace-scoped SA that cannot even GET a namespace", func() {
+		By("Confirming the SA can neither get nor list namespaces")
+		Expect(apierrors.IsForbidden(
+			noNsPermClient.List(testCtx, &corev1.NamespaceList{}))).To(BeTrue())
+		Expect(apierrors.IsForbidden(
+			noNsPermClient.Get(testCtx, client.ObjectKey{Name: rbacNS}, &corev1.Namespace{}))).To(BeTrue())
+
+		// GET is forbidden, so existence validation is skipped and the namespace is
+		// used as-is; collection then proceeds with the namespaced reads it does have.
+		params, err := testutils.NewTestParams(
+			testCtx, noNsPermClient, noNsPermClientSet, []string{rbacNS}, false, false)
+		Expect(err).NotTo(HaveOccurred())
+
+		paths := runCollectInfo(params)
+		Expect(paths).To(ContainElement(ContainSubstring(
+			filepath.Join(collectinfo.NamespaceScopedDir, rbacNS, "configmaps"))))
+	})
+
+	// ---------- Dark paths ----------
+
+	It("fails collection when --cluster-scope=true but the SA lacks cluster permissions", func() {
+		params, err := testutils.NewTestParams(
+			testCtx, restrictedClient, restrictedClientSet, []string{rbacNS}, false, true)
+		Expect(err).NotTo(HaveOccurred()) // validation via GET still succeeds
+
+		out := GinkgoT().TempDir()
+		Expect(os.MkdirAll(filepath.Join(out, collectinfo.RootOutputDir), os.ModePerm)).To(Succeed())
+
+		err = collectinfo.CollectInfo(testCtx, params, out)
+		Expect(err).To(HaveOccurred())
+		Expect(apierrors.IsForbidden(err)).To(BeTrue())
+	})
+
+	It("fails at parameter creation when -A is used (still needs list-namespaces)", func() {
+		_, err := testutils.NewTestParams(
+			testCtx, restrictedClient, restrictedClientSet, nil, true, false)
+		Expect(err).To(HaveOccurred())
+		Expect(apierrors.IsForbidden(err)).To(BeTrue())
+	})
+
+	It("fails when all -n namespaces are missing", func() {
+		_, err := testutils.NewTestParams(
+			testCtx, restrictedClient, restrictedClientSet, []string{"missing-one", "missing-two"}, false, false)
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring("all given namespaces are not present"))
+	})
+
+	It("drops a missing namespace and collects the existing one", func() {
+		params, err := testutils.NewTestParams(
+			testCtx, restrictedClient, restrictedClientSet, []string{rbacNS, "does-not-exist"}, false, false)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(params.Namespaces.UnsortedList()).To(ConsistOf(rbacNS))
+
+		paths := runCollectInfo(params)
+		Expect(paths).To(ContainElement(ContainSubstring(
+			filepath.Join(collectinfo.NamespaceScopedDir, rbacNS, "configmaps"))))
+		Expect(paths).NotTo(ContainElement(ContainSubstring(
+			filepath.Join(collectinfo.NamespaceScopedDir, "does-not-exist"))))
+	})
+
+	It("fails collection when the SA cannot list namespaced resources", func() {
+		// missingReadsSA can validate the namespace (get) but has no read on
+		// namespaced resources, so the first namespaced List in CollectInfo is denied.
+		params, err := testutils.NewTestParams(
+			testCtx, missingReadsClient, missingReadsCS, []string{rbacNS}, false, false)
+		Expect(err).NotTo(HaveOccurred())
+
+		out := GinkgoT().TempDir()
+		Expect(os.MkdirAll(filepath.Join(out, collectinfo.RootOutputDir), os.ModePerm)).To(Succeed())
+
+		err = collectinfo.CollectInfo(testCtx, params, out)
+		Expect(err).To(HaveOccurred())
+		Expect(apierrors.IsForbidden(err)).To(BeTrue())
+	})
+})
+
+// runCollectInfo runs CollectInfo into a fresh temp dir and returns the list of
+// regular-file paths inside the produced tar archive.
+func runCollectInfo(params *configuration.Parameters) []string {
+	out := GinkgoT().TempDir()
+	Expect(os.MkdirAll(filepath.Join(out, collectinfo.RootOutputDir), os.ModePerm)).To(Succeed())
+
+	params.Logger = collectinfo.AttachFileLogger(params.Logger,
+		filepath.Join(out, collectinfo.RootOutputDir, collectinfo.LogFileName))
+
+	Expect(collectinfo.CollectInfo(testCtx, params, out)).To(Succeed())
+
+	paths, err := tarFilePaths(filepath.Join(out, collectinfo.TarName))
+	Expect(err).NotTo(HaveOccurred())
+
+	return paths
+}
+
+// tarFilePaths returns the names of all regular files in the gzipped tar archive.
+func tarFilePaths(tarPath string) ([]string, error) {
+	f, err := os.Open(tarPath)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	gzf, err := gzip.NewReader(f)
+	if err != nil {
+		return nil, err
+	}
+
+	var paths []string
+
+	tr := tar.NewReader(gzf)
+
+	for {
+		header, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+
+		if err != nil {
+			return nil, err
+		}
+
+		if header.Typeflag == tar.TypeReg {
+			paths = append(paths, header.Name)
+		}
+	}
+
+	return paths, nil
+}
+
+// seedNamespacedObjects creates a small set of namespace-scoped objects so that
+// collection has something to capture in the given namespace.
+func seedNamespacedObjects(ns string) {
+	Expect(k8sClient.Create(testCtx, &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{Name: "rbac-cm", Namespace: ns},
+		Data:       map[string]string{},
+	})).To(Succeed())
+
+	Expect(k8sClient.Create(testCtx, &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{Name: "rbac-svc", Namespace: ns},
+		Spec:       corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 3000}}},
+	})).To(Succeed())
+
+	Expect(k8sClient.Create(testCtx, &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{Name: "rbac-pod", Namespace: ns},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{{Name: "c", Image: "nginx"}},
+		},
+	})).To(Succeed())
+}
+
+// bindClusterRoleInNamespace grants a ClusterRole's permissions to a SA, scoped to
+// a single namespace, via a RoleBinding.
+func bindClusterRoleInNamespace(clusterRole, sa, ns string) {
+	Expect(k8sClient.Create(testCtx, &rbacv1.RoleBinding{
+		ObjectMeta: metav1.ObjectMeta{Name: clusterRole + "-" + sa, Namespace: ns},
+		Subjects: []rbacv1.Subject{{
+			Kind:      rbacv1.ServiceAccountKind,
+			Name:      sa,
+			Namespace: rbacNS,
+		}},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: rbacv1.GroupName,
+			Kind:     "ClusterRole",
+			Name:     clusterRole,
+		},
+	})).To(Succeed())
+}
+
+// bindClusterRoleClusterWide grants a ClusterRole's permissions to a SA cluster-wide
+// via a ClusterRoleBinding.
+func bindClusterRoleClusterWide(clusterRole, sa, bindingName string) {
+	Expect(k8sClient.Create(testCtx, &rbacv1.ClusterRoleBinding{
+		ObjectMeta: metav1.ObjectMeta{Name: bindingName},
+		Subjects: []rbacv1.Subject{{
+			Kind:      rbacv1.ServiceAccountKind,
+			Name:      sa,
+			Namespace: rbacNS,
+		}},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: rbacv1.GroupName,
+			Kind:     "ClusterRole",
+			Name:     clusterRole,
+		},
+	})).To(Succeed())
+}
+
+// impersonatingClients builds the controller-runtime client and typed clientset
+// collectinfo needs, both impersonating the given ServiceAccount so the API server
+// enforces that SA's RBAC.
+func impersonatingClients(saNS, saName string) (client.Client, *kubernetes.Clientset) {
+	impCfg := rest.CopyConfig(cfg)
+	impCfg.Impersonate = rest.ImpersonationConfig{
+		UserName: fmt.Sprintf("system:serviceaccount:%s:%s", saNS, saName),
+	}
+
+	scheme := runtime.NewScheme()
+	Expect(clientscheme.AddToScheme(scheme)).To(Succeed())
+
+	c, err := client.New(impCfg, client.Options{Scheme: scheme})
+	Expect(err).NotTo(HaveOccurred())
+
+	cs, err := kubernetes.NewForConfig(impCfg)
+	Expect(err).NotTo(HaveOccurred())
+
+	return c, cs
 }

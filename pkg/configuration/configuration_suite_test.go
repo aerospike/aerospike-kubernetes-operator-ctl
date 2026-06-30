@@ -16,59 +16,17 @@ limitations under the License.
 package configuration_test
 
 import (
-	"os"
 	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"k8s.io/client-go/rest"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/envtest"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
-var (
-	testEnv      *envtest.Environment
-	envCfg       *rest.Config
-	adminClient  client.Client
-	envtestReady bool
-)
-
+// The configuration package is covered entirely by fast fake-client unit specs
+// (see configuration_test.go); it needs no API server. The end-to-end RBAC
+// behavior of ValidateNamespaces is exercised against a real API server in the
+// collectinfo envtest, where the bug it fixes actually surfaced.
 func TestConfiguration(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Configuration Suite")
 }
-
-var _ = BeforeSuite(func() {
-	// The fake-client specs need no API server. Only the RBAC specs require
-	// envtest; when its binaries are not provisioned (e.g. plain `go test`
-	// without KUBEBUILDER_ASSETS), leave envtestReady false so those specs skip.
-	if os.Getenv("KUBEBUILDER_ASSETS") == "" {
-		return
-	}
-
-	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
-
-	By("Bootstrapping test environment")
-
-	testEnv = &envtest.Environment{}
-
-	cfg, err := testEnv.Start()
-	Expect(err).NotTo(HaveOccurred())
-	Expect(cfg).NotTo(BeNil())
-
-	adminClient, err = client.New(cfg, client.Options{Scheme: testScheme()})
-	Expect(err).NotTo(HaveOccurred())
-	Expect(adminClient).NotTo(BeNil())
-
-	envCfg = cfg
-	envtestReady = true
-})
-
-var _ = AfterSuite(func() {
-	if testEnv != nil {
-		By("Tearing down the test environment")
-		Expect(testEnv.Stop()).To(Succeed())
-	}
-})
