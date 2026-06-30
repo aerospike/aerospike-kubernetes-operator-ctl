@@ -23,6 +23,7 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
@@ -110,33 +111,52 @@ func (p *Parameters) ValidateNamespaces(ctx context.Context, namespaces []string
 	userNsSet := sets.Set[string]{}
 	userNsSet.Insert(namespaces...)
 
-	allNsSet := sets.Set[string]{}
-	namespaceObjs := &corev1.NamespaceList{}
-
-	if err := p.K8sClient.List(ctx, namespaceObjs); err != nil {
-		return err
-	}
-
-	for idx := range namespaceObjs.Items {
-		allNsSet.Insert(namespaceObjs.Items[idx].Name)
-	}
-
+	// Only list all namespaces in the cluster when the --all-namespaces/-A flag is set.
+	// This avoids requiring cluster-wide namespace LIST permission when the user has
+	// explicitly provided the namespaces to capture via the -n flag.
 	if p.AllNamespaces {
 		p.Logger.Info("Capturing for all namespaces")
 
-		userNsSet = allNsSet
-	} else {
-		nonExistentNs := userNsSet.Difference(allNsSet)
+		allNamespacesSet := sets.Set[string]{}
+		namespaceObjs := &corev1.NamespaceList{}
 
-		// error out if all the user given namespaces are not present in cluster
+		if err := p.K8sClient.List(ctx, namespaceObjs); err != nil {
+			return err
+		}
+
+		for idx := range namespaceObjs.Items {
+			allNamespacesSet.Insert(namespaceObjs.Items[idx].Name)
+		}
+
+		userNsSet = allNamespacesSet
+	} else {
+		// Validate that the user-provided namespaces actually exist,
+		// using a per-namespace GET call.
+		nonExistentNs := sets.Set[string]{}
+
+		for ns := range userNsSet {
+			err := p.K8sClient.Get(ctx, client.ObjectKey{Name: ns}, &corev1.Namespace{})
+			switch {
+			case err == nil:
+				continue
+			case apierrors.IsNotFound(err):
+				nonExistentNs.Insert(ns)
+			case apierrors.IsForbidden(err):
+				p.Logger.Warn("Not allowed to verify namespace existence, skipping validation",
+					zap.String("namespace", ns), zap.Error(err))
+			default:
+				return err
+			}
+		}
+
+		// Error out if none of the user-given namespaces are present in the cluster.
 		if nonExistentNs.Len() > 0 {
 			if nonExistentNs.Len() == userNsSet.Len() {
 				return fmt.Errorf("all given namespaces are not present in cluster")
 			}
 
-			p.Logger.Warn(
-				fmt.Sprintf("namespaces %+v not present in cluster, skipping those namespaces",
-					nonExistentNs.UnsortedList()))
+			p.Logger.Warn(fmt.Sprintf("namespaces %+v not present in cluster, skipping those namespaces",
+				nonExistentNs.UnsortedList()))
 
 			userNsSet = userNsSet.Difference(nonExistentNs)
 		}

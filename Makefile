@@ -20,6 +20,12 @@ go-lint: golangci-lint ## Run golangci-lint against code.
 test: envtest ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go run github.com/onsi/ginkgo/v2/ginkgo -r --keep-going -coverprofile cover.out -progress -v -timeout=12h0m0s -focus=${FOCUS} --junit-report="junit.xml" pkg/ -- ${ARGS}
 
+UNIT_TEST_PKGS ?= ./pkg/configuration/...
+
+.PHONY: unit-test
+unit-test: ## Run unit tests only.
+	go test $(UNIT_TEST_PKGS)
+
 ENVTEST ?= $(LOCALBIN)/setup-envtest
 
 .PHONY: envtest
