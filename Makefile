@@ -24,7 +24,7 @@ UNIT_TEST_PKGS ?= ./pkg/configuration/...
 
 .PHONY: unit-test
 unit-test: ## Run unit tests only.
-	go test $(UNIT_TEST_PKGS)
+	KUBEBUILDER_ASSETS= go test $(UNIT_TEST_PKGS)
 
 ENVTEST ?= $(LOCALBIN)/setup-envtest
 
