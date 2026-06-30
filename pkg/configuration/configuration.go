@@ -108,70 +108,79 @@ func (p *Parameters) ValidateNamespaces(ctx context.Context, namespaces []string
 		return fmt.Errorf("either `namespaces` or `all-namespaces` argument must be provided")
 	}
 
-	userNsSet := sets.Set[string]{}
-
-	for _, ns := range namespaces {
-		if ns != "" {
-			userNsSet.Insert(ns)
-		}
-	}
-
-	if userNsSet.Len() == 0 && len(namespaces) > 0 {
-		return fmt.Errorf("all provided namespace values are empty")
-	}
-
 	// Only list all namespaces in the cluster when the --all-namespaces/-A flag is set.
 	// This avoids requiring cluster-wide namespace LIST permission when the user has
 	// explicitly provided the namespaces to capture via the -n flag.
 	if p.AllNamespaces {
-		p.Logger.Info("Capturing for all namespaces")
+		return p.resolveAllNamespaces(ctx)
+	}
 
-		allNamespacesSet := sets.Set[string]{}
-		namespaceObjs := &corev1.NamespaceList{}
+	nsSet := sets.Set[string]{}
 
-		if err := p.K8sClient.List(ctx, namespaceObjs); err != nil {
-			return err
-		}
-
-		for idx := range namespaceObjs.Items {
-			allNamespacesSet.Insert(namespaceObjs.Items[idx].Name)
-		}
-
-		userNsSet = allNamespacesSet
-	} else {
-		// Validate that the user-provided namespaces actually exist,
-		// using a per-namespace GET call.
-		nonExistentNs := sets.Set[string]{}
-
-		for ns := range userNsSet {
-			err := p.K8sClient.Get(ctx, client.ObjectKey{Name: ns}, &corev1.Namespace{})
-			switch {
-			case err == nil:
-				continue
-			case apierrors.IsNotFound(err):
-				nonExistentNs.Insert(ns)
-			case apierrors.IsForbidden(err):
-				p.Logger.Warn("Not allowed to verify namespace existence, skipping validation",
-					zap.String("namespace", ns), zap.Error(err))
-			default:
-				return err
-			}
-		}
-
-		// Error out if none of the user-given namespaces are present in the cluster.
-		if nonExistentNs.Len() > 0 {
-			if nonExistentNs.Len() == userNsSet.Len() {
-				return fmt.Errorf("all given namespaces are not present in cluster")
-			}
-
-			p.Logger.Warn(fmt.Sprintf("namespaces %+v not present in cluster, skipping those namespaces",
-				nonExistentNs.UnsortedList()))
-
-			userNsSet = userNsSet.Difference(nonExistentNs)
+	for _, ns := range namespaces {
+		if ns != "" {
+			nsSet.Insert(ns)
 		}
 	}
 
-	p.Namespaces = userNsSet
+	if nsSet.Len() == 0 {
+		return fmt.Errorf("all provided namespace values are empty")
+	}
+
+	return p.resolveUserNamespaces(ctx, nsSet)
+}
+
+// resolveAllNamespaces resolves the namespaces if --all-namespaces/-A flag is used.
+func (p *Parameters) resolveAllNamespaces(ctx context.Context) error {
+	p.Logger.Info("Capturing for all namespaces")
+
+	namespaceObjs := &corev1.NamespaceList{}
+	if err := p.K8sClient.List(ctx, namespaceObjs); err != nil {
+		return err
+	}
+
+	nsSet := sets.Set[string]{}
+
+	for idx := range namespaceObjs.Items {
+		nsSet.Insert(namespaceObjs.Items[idx].Name)
+	}
+
+	p.Namespaces = nsSet
+
+	return nil
+}
+
+// resolveUserNamespaces resolves the namespaces passed by the user in the -n flag.
+func (p *Parameters) resolveUserNamespaces(ctx context.Context, nsSet sets.Set[string]) error {
+	nonExistentNs := sets.Set[string]{}
+
+	for ns := range nsSet {
+		err := p.K8sClient.Get(ctx, client.ObjectKey{Name: ns}, &corev1.Namespace{})
+		switch {
+		case err == nil:
+			continue
+		case apierrors.IsNotFound(err):
+			nonExistentNs.Insert(ns)
+		case apierrors.IsForbidden(err):
+			p.Logger.Warn("Not allowed to verify namespace existence, skipping validation",
+				zap.String("namespace", ns), zap.Error(err))
+		default:
+			return err
+		}
+	}
+
+	if nonExistentNs.Len() > 0 {
+		if nonExistentNs.Len() == nsSet.Len() {
+			return fmt.Errorf("all given namespaces are not present in cluster")
+		}
+
+		p.Logger.Warn(fmt.Sprintf("namespaces %+v not present in cluster, skipping those namespaces",
+			nonExistentNs.UnsortedList()))
+
+		nsSet = nsSet.Difference(nonExistentNs)
+	}
+
+	p.Namespaces = nsSet
 
 	return nil
 }

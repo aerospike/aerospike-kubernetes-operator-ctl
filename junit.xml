@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="UTF-8"?>
+  <testsuites tests="25" disabled="0" errors="0" failures="0" time="13.065037749000002">
+      <testsuite name="Auth Suite" package="/Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/auth" tests="6" disabled="0" skipped="0" errors="0" failures="0" time="3.407350541" timestamp="2026-06-30T15:28:45">
+          <properties>
+              <property name="SuiteSucceeded" value="true"></property>
+              <property name="SuiteHasProgrammaticFocus" value="false"></property>
+              <property name="SpecialSuiteFailureReason" value=""></property>
+              <property name="SuiteLabels" value="[]"></property>
+              <property name="SuiteSemVerConstraints" value="[]"></property>
+              <property name="SuiteComponentSemVerConstraints" value="[]"></property>
+              <property name="RandomSeed" value="1782813523"></property>
+              <property name="RandomizeAllSpecs" value="false"></property>
+              <property name="LabelFilter" value=""></property>
+              <property name="SemVerFilter" value=""></property>
+              <property name="FocusStrings" value=""></property>
+              <property name="SkipStrings" value=""></property>
+              <property name="FocusFiles" value=""></property>
+              <property name="SkipFiles" value=""></property>
+              <property name="FailOnPending" value="false"></property>
+              <property name="FailOnEmpty" value="false"></property>
+              <property name="FailFast" value="false"></property>
+              <property name="FlakeAttempts" value="0"></property>
+              <property name="DryRun" value="false"></property>
+              <property name="ParallelTotal" value="1"></property>
+              <property name="OutputInterceptorMode" value=""></property>
+          </properties>
+          <testcase name="[BeforeSuite]" classname="Auth Suite" status="passed" time="2.279059292">
+              <system-err>&gt; Enter [BeforeSuite] TOP-LEVEL - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/auth/auth_suite_test.go:49 @ 06/30/26 15:28:45.11&#xA;STEP: Bootstrapping test environment - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/auth/auth_suite_test.go:53 @ 06/30/26 15:28:45.11&#xA;2026-06-30T15:28:45+05:30&#x9;DEBUG&#x9;controller-runtime.test-env&#x9;starting control plane&#xA;2026-06-30T15:28:47+05:30&#x9;DEBUG&#x9;controller-runtime.test-env&#x9;installing CRDs&#xA;2026-06-30T15:28:47+05:30&#x9;DEBUG&#x9;controller-runtime.test-env&#x9;installing webhooks&#xA;&lt; Exit [BeforeSuite] TOP-LEVEL - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/auth/auth_suite_test.go:49 @ 06/30/26 15:28:47.389 (2.279s)&#xA;</system-err>
+          </testcase>
+          <testcase name="[It] Auth Create and Delete  Should create and delete namespace level RBAC" classname="Auth Suite" status="passed" time="0.004196458">
+              <system-err>&gt; Enter [It] Should create and delete namespace level RBAC - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/auth/auth_test.go:34 @ 06/30/26 15:28:47.39&#xA;&lt; Exit [It] Should create and delete namespace level RBAC - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/auth/auth_test.go:34 @ 06/30/26 15:28:47.394 (4ms)&#xA;</system-err>
+          </testcase>
+          <testcase name="[It] Auth Create and Delete  Should create and delete cluster level RBAC" classname="Auth Suite" status="passed" time="0.003642">
+              <system-err>&gt; Enter [It] Should create and delete cluster level RBAC - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/auth/auth_test.go:39 @ 06/30/26 15:28:47.394&#xA;&lt; Exit [It] Should create and delete cluster level RBAC - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/auth/auth_test.go:39 @ 06/30/26 15:28:47.397 (4ms)&#xA;</system-err>
+          </testcase>
+          <testcase name="[It] Auth Update and Delete Should add or remove new entry for new namespace for cluster level RBAC" classname="Auth Suite" status="passed" time="0.010089458">
+              <system-err>&gt; Enter [It] Should add or remove new entry for new namespace for cluster level RBAC - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/auth/auth_test.go:46 @ 06/30/26 15:28:47.397&#xA;STEP: Creating RBAC for testns namespace - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/auth/auth_test.go:47 @ 06/30/26 15:28:47.397&#xA;STEP: Creating RBAC for default namespace - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/auth/auth_test.go:50 @ 06/30/26 15:28:47.399&#xA;STEP: Creating RBAC for default namespace again to check duplicate entries - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/auth/auth_test.go:55 @ 06/30/26 15:28:47.402&#xA;STEP: Deleting RBAC - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/auth/auth_test.go:58 @ 06/30/26 15:28:47.404&#xA;&lt; Exit [It] Should add or remove new entry for new namespace for cluster level RBAC - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/auth/auth_test.go:46 @ 06/30/26 15:28:47.408 (10ms)&#xA;</system-err>
+          </testcase>
+          <testcase name="[It] Auth Wrong kubeconfig path Should fail when wrong kubeconfig path is given" classname="Auth Suite" status="passed" time="6.9e-05">
+              <system-err>&gt; Enter [It] Should fail when wrong kubeconfig path is given - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/auth/auth_test.go:65 @ 06/30/26 15:28:47.408&#xA;&lt; Exit [It] Should fail when wrong kubeconfig path is given - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/auth/auth_test.go:65 @ 06/30/26 15:28:47.408 (0s)&#xA;</system-err>
+          </testcase>
+          <testcase name="[AfterSuite]" classname="Auth Suite" status="passed" time="1.109911583">
+              <system-err>&gt; Enter [AfterSuite] TOP-LEVEL - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/auth/auth_suite_test.go:79 @ 06/30/26 15:28:47.408&#xA;STEP: Tearing down the test environment - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/auth/auth_suite_test.go:81 @ 06/30/26 15:28:47.408&#xA;&lt; Exit [AfterSuite] TOP-LEVEL - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/auth/auth_suite_test.go:79 @ 06/30/26 15:28:48.518 (1.11s)&#xA;</system-err>
+          </testcase>
+      </testsuite>
+      <testsuite name="CollectInfo Suite" package="/Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/collectinfo" tests="3" disabled="0" skipped="0" errors="0" failures="0" time="6.576865125" timestamp="2026-06-30T15:28:49">
+          <properties>
+              <property name="SuiteSucceeded" value="true"></property>
+              <property name="SuiteHasProgrammaticFocus" value="false"></property>
+              <property name="SpecialSuiteFailureReason" value=""></property>
+              <property name="SuiteLabels" value="[]"></property>
+              <property name="SuiteSemVerConstraints" value="[]"></property>
+              <property name="SuiteComponentSemVerConstraints" value="[]"></property>
+              <property name="RandomSeed" value="1782813523"></property>
+              <property name="RandomizeAllSpecs" value="false"></property>
+              <property name="LabelFilter" value=""></property>
+              <property name="SemVerFilter" value=""></property>
+              <property name="FocusStrings" value=""></property>
+              <property name="SkipStrings" value=""></property>
+              <property name="FocusFiles" value=""></property>
+              <property name="SkipFiles" value=""></property>
+              <property name="FailOnPending" value="false"></property>
+              <property name="FailOnEmpty" value="false"></property>
+              <property name="FailFast" value="false"></property>
+              <property name="FlakeAttempts" value="0"></property>
+              <property name="DryRun" value="false"></property>
+              <property name="ParallelTotal" value="1"></property>
+              <property name="OutputInterceptorMode" value=""></property>
+          </properties>
+          <testcase name="[BeforeSuite]" classname="CollectInfo Suite" status="passed" time="2.686022416">
+              <system-err>&gt; Enter [BeforeSuite] TOP-LEVEL - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/collectinfo/collectinfo_suite_test.go:54 @ 06/30/26 15:28:49.227&#xA;STEP: Bootstrapping test environment - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/collectinfo/collectinfo_suite_test.go:58 @ 06/30/26 15:28:49.227&#xA;2026-06-30T15:28:49+05:30&#x9;DEBUG&#x9;controller-runtime.test-env&#x9;starting control plane&#xA;2026-06-30T15:28:51+05:30&#x9;DEBUG&#x9;controller-runtime.test-env&#x9;installing CRDs&#xA;2026-06-30T15:28:51+05:30&#x9;DEBUG&#x9;controller-runtime.test-env&#x9;reading CRDs from path&#x9;{&#34;path&#34;: &#34;../../config/crd/bases&#34;}&#xA;2026-06-30T15:28:51+05:30&#x9;DEBUG&#x9;controller-runtime.test-env&#x9;read CRDs from file&#x9;{&#34;file&#34;: &#34;asdb.aerospike.com_aerospikebackups.yaml&#34;}&#xA;2026-06-30T15:28:51+05:30&#x9;DEBUG&#x9;controller-runtime.test-env&#x9;read CRDs from file&#x9;{&#34;file&#34;: &#34;asdb.aerospike.com_aerospikebackupservices.yaml&#34;}&#xA;2026-06-30T15:28:51+05:30&#x9;DEBUG&#x9;controller-runtime.test-env&#x9;read CRDs from file&#x9;{&#34;file&#34;: &#34;asdb.aerospike.com_aerospikeclusters.yaml&#34;}&#xA;2026-06-30T15:28:51+05:30&#x9;DEBUG&#x9;controller-runtime.test-env&#x9;read CRDs from file&#x9;{&#34;file&#34;: &#34;asdb.aerospike.com_aerospikerestores.yaml&#34;}&#xA;2026-06-30T15:28:51+05:30&#x9;DEBUG&#x9;controller-runtime.test-env&#x9;installing CRD&#x9;{&#34;crd&#34;: &#34;aerospikebackupservices.asdb.aerospike.com&#34;}&#xA;2026-06-30T15:28:51+05:30&#x9;DEBUG&#x9;controller-runtime.test-env&#x9;installing CRD&#x9;{&#34;crd&#34;: &#34;aerospikeclusters.asdb.aerospike.com&#34;}&#xA;2026-06-30T15:28:51+05:30&#x9;DEBUG&#x9;controller-runtime.test-env&#x9;installing CRD&#x9;{&#34;crd&#34;: &#34;aerospikerestores.asdb.aerospike.com&#34;}&#xA;2026-06-30T15:28:51+05:30&#x9;DEBUG&#x9;controller-runtime.test-env&#x9;installing CRD&#x9;{&#34;crd&#34;: &#34;aerospikebackups.asdb.aerospike.com&#34;}&#xA;2026-06-30T15:28:51+05:30&#x9;DEBUG&#x9;controller-runtime.test-env&#x9;adding API in waitlist&#x9;{&#34;GV&#34;: &#34;asdb.aerospike.com/v1beta1&#34;}&#xA;2026-06-30T15:28:51+05:30&#x9;DEBUG&#x9;controller-runtime.test-env&#x9;adding API in waitlist&#x9;{&#34;GV&#34;: &#34;asdb.aerospike.com/v1&#34;}&#xA;2026-06-30T15:28:51+05:30&#x9;DEBUG&#x9;controller-runtime.test-env&#x9;adding API in waitlist&#x9;{&#34;GV&#34;: &#34;asdb.aerospike.com/v1beta1&#34;}&#xA;2026-06-30T15:28:51+05:30&#x9;DEBUG&#x9;controller-runtime.test-env&#x9;adding API in waitlist&#x9;{&#34;GV&#34;: &#34;asdb.aerospike.com/v1beta1&#34;}&#xA;2026-06-30T15:28:51+05:30&#x9;DEBUG&#x9;controller-runtime.test-env&#x9;installing webhooks&#xA;&lt; Exit [BeforeSuite] TOP-LEVEL - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/collectinfo/collectinfo_suite_test.go:54 @ 06/30/26 15:28:51.913 (2.686s)&#xA;</system-err>
+          </testcase>
+          <testcase name="[It] collectInfo When doing valid operations Should create a tar file with all logs" classname="CollectInfo Suite" status="passed" time="2.819803709">
+              <system-err>&gt; Enter [It] Should create a tar file with all logs - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/collectinfo/collectinfo_test.go:127 @ 06/30/26 15:28:51.914&#xA;&lt; Exit [It] Should create a tar file with all logs - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/collectinfo/collectinfo_test.go:127 @ 06/30/26 15:28:54.733 (2.82s)&#xA;</system-err>
+          </testcase>
+          <testcase name="[AfterSuite]" classname="CollectInfo Suite" status="passed" time="1.070208875">
+              <system-err>&gt; Enter [AfterSuite] TOP-LEVEL - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/collectinfo/collectinfo_suite_test.go:94 @ 06/30/26 15:28:54.733&#xA;STEP: Tearing down the test environment - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/collectinfo/collectinfo_suite_test.go:96 @ 06/30/26 15:28:54.733&#xA;&lt; Exit [AfterSuite] TOP-LEVEL - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/collectinfo/collectinfo_suite_test.go:94 @ 06/30/26 15:28:55.804 (1.07s)&#xA;</system-err>
+          </testcase>
+      </testsuite>
+      <testsuite name="Configuration Suite" package="/Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/configuration" tests="16" disabled="0" skipped="0" errors="0" failures="0" time="3.080822083" timestamp="2026-06-30T15:28:56">
+          <properties>
+              <property name="SuiteSucceeded" value="true"></property>
+              <property name="SuiteHasProgrammaticFocus" value="false"></property>
+              <property name="SpecialSuiteFailureReason" value=""></property>
+              <property name="SuiteLabels" value="[]"></property>
+              <property name="SuiteSemVerConstraints" value="[]"></property>
+              <property name="SuiteComponentSemVerConstraints" value="[]"></property>
+              <property name="RandomSeed" value="1782813523"></property>
+              <property name="RandomizeAllSpecs" value="false"></property>
+              <property name="LabelFilter" value=""></property>
+              <property name="SemVerFilter" value=""></property>
+              <property name="FocusStrings" value=""></property>
+              <property name="SkipStrings" value=""></property>
+              <property name="FocusFiles" value=""></property>
+              <property name="SkipFiles" value=""></property>
+              <property name="FailOnPending" value="false"></property>
+              <property name="FailOnEmpty" value="false"></property>
+              <property name="FailFast" value="false"></property>
+              <property name="FlakeAttempts" value="0"></property>
+              <property name="DryRun" value="false"></property>
+              <property name="ParallelTotal" value="1"></property>
+              <property name="OutputInterceptorMode" value=""></property>
+          </properties>
+          <testcase name="[BeforeSuite]" classname="Configuration Suite" status="passed" time="1.976137917">
+              <system-err>&gt; Enter [BeforeSuite] TOP-LEVEL - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/configuration/configuration_suite_test.go:43 @ 06/30/26 15:28:56.437&#xA;STEP: Bootstrapping test environment - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/configuration/configuration_suite_test.go:53 @ 06/30/26 15:28:56.437&#xA;2026-06-30T15:28:56+05:30&#x9;DEBUG&#x9;controller-runtime.test-env&#x9;starting control plane&#xA;2026-06-30T15:28:58+05:30&#x9;DEBUG&#x9;controller-runtime.test-env&#x9;installing CRDs&#xA;2026-06-30T15:28:58+05:30&#x9;DEBUG&#x9;controller-runtime.test-env&#x9;installing webhooks&#xA;&lt; Exit [BeforeSuite] TOP-LEVEL - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/configuration/configuration_suite_test.go:43 @ 06/30/26 15:28:58.413 (1.976s)&#xA;</system-err>
+          </testcase>
+          <testcase name="[It] ValidateNamespaces against a real API server with RBAC should accept -n namespaces even when the SA cannot verify their existence" classname="Configuration Suite" status="passed" time="0.005910792">
+              <system-err>&gt; Enter [BeforeAll] ValidateNamespaces against a real API server with RBAC - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/configuration/configuration_envtest_test.go:46 @ 06/30/26 15:28:58.413&#xA;STEP: Creating a namespace, ServiceAccount and a namespace-scoped (no namespace list) Role - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/configuration/configuration_envtest_test.go:51 @ 06/30/26 15:28:58.413&#xA;STEP: Building a client that impersonates the limited ServiceAccount - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/configuration/configuration_envtest_test.go:87 @ 06/30/26 15:28:58.416&#xA;STEP: Confirming the impersonated SA really cannot list namespaces - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/configuration/configuration_envtest_test.go:99 @ 06/30/26 15:28:58.417&#xA;&lt; Exit [BeforeAll] ValidateNamespaces against a real API server with RBAC - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/configuration/configuration_envtest_test.go:46 @ 06/30/26 15:28:58.418 (5ms)&#xA;&gt; Enter [It] should accept -n namespaces even when the SA cannot verify their existence - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/configuration/configuration_envtest_test.go:106 @ 06/30/26 15:28:58.418&#xA;&lt; Exit [It] should accept -n namespaces even when the SA cannot verify their existence - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/configuration/configuration_envtest_test.go:106 @ 06/30/26 15:28:58.419 (1ms)&#xA;</system-err>
+          </testcase>
+          <testcase name="[It] ValidateNamespaces against a real API server with RBAC should fail with a Forbidden error when -A is used by the limited SA" classname="Configuration Suite" status="passed" time="0.000219542">
+              <system-err>&gt; Enter [It] should fail with a Forbidden error when -A is used by the limited SA - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/configuration/configuration_envtest_test.go:117 @ 06/30/26 15:28:58.419&#xA;&lt; Exit [It] should fail with a Forbidden error when -A is used by the limited SA - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/configuration/configuration_envtest_test.go:117 @ 06/30/26 15:28:58.419 (0s)&#xA;</system-err>
+          </testcase>
+          <testcase name="[It] ValidateNamespaces against a real API server with RBAC should drop a non-existent namespace when the caller can GET namespaces" classname="Configuration Suite" status="passed" time="0.000654833">
+              <system-err>&gt; Enter [It] should drop a non-existent namespace when the caller can GET namespaces - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/configuration/configuration_envtest_test.go:125 @ 06/30/26 15:28:58.419&#xA;&lt; Exit [It] should drop a non-existent namespace when the caller can GET namespaces - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/configuration/configuration_envtest_test.go:125 @ 06/30/26 15:28:58.42 (1ms)&#xA;</system-err>
+          </testcase>
+          <testcase name="[It] ValidateNamespaces against a real API server with RBAC should list every namespace when -A is used by an admin" classname="Configuration Suite" status="passed" time="0.000466625">
+              <system-err>&gt; Enter [It] should list every namespace when -A is used by an admin - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/configuration/configuration_envtest_test.go:135 @ 06/30/26 15:28:58.42&#xA;&lt; Exit [It] should list every namespace when -A is used by an admin - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/configuration/configuration_envtest_test.go:135 @ 06/30/26 15:28:58.42 (0s)&#xA;</system-err>
+          </testcase>
+          <testcase name="[It] ValidateNamespaces when neither namespaces nor all-namespaces is provided should return an error without contacting the API server" classname="Configuration Suite" status="passed" time="2.2833e-05">
+              <system-err>&gt; Enter [It] should return an error without contacting the API server - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/configuration/configuration_test.go:105 @ 06/30/26 15:28:58.42&#xA;&lt; Exit [It] should return an error without contacting the API server - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/configuration/configuration_test.go:105 @ 06/30/26 15:28:58.42 (0s)&#xA;</system-err>
+          </testcase>
+          <testcase name="[It] ValidateNamespaces when namespaces are provided via -n should keep all provided namespaces when they exist in the cluster" classname="Configuration Suite" status="passed" time="0.001119458">
+              <system-err>&gt; Enter [It] should keep all provided namespaces when they exist in the cluster - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/configuration/configuration_test.go:116 @ 06/30/26 15:28:58.42&#xA;&lt; Exit [It] should keep all provided namespaces when they exist in the cluster - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/configuration/configuration_test.go:116 @ 06/30/26 15:28:58.421 (1ms)&#xA;</system-err>
+          </testcase>
+          <testcase name="[It] ValidateNamespaces when namespaces are provided via -n should drop namespaces that do not exist and keep the rest" classname="Configuration Suite" status="passed" time="0.000511417">
+              <system-err>&gt; Enter [It] should drop namespaces that do not exist and keep the rest - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/configuration/configuration_test.go:124 @ 06/30/26 15:28:58.421&#xA;&lt; Exit [It] should drop namespaces that do not exist and keep the rest - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/configuration/configuration_test.go:124 @ 06/30/26 15:28:58.422 (1ms)&#xA;</system-err>
+          </testcase>
+          <testcase name="[It] ValidateNamespaces when namespaces are provided via -n should error when none of the provided namespaces exist" classname="Configuration Suite" status="passed" time="0.00043775">
+              <system-err>&gt; Enter [It] should error when none of the provided namespaces exist - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/configuration/configuration_test.go:133 @ 06/30/26 15:28:58.422&#xA;&lt; Exit [It] should error when none of the provided namespaces exist - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/configuration/configuration_test.go:133 @ 06/30/26 15:28:58.422 (0s)&#xA;</system-err>
+          </testcase>
+          <testcase name="[It] ValidateNamespaces when namespaces are provided via -n should succeed without requiring any cluster-wide namespace permission" classname="Configuration Suite" status="passed" time="0.000415917">
+              <system-err>&gt; Enter [It] should succeed without requiring any cluster-wide namespace permission - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/configuration/configuration_test.go:141 @ 06/30/26 15:28:58.422&#xA;&lt; Exit [It] should succeed without requiring any cluster-wide namespace permission - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/configuration/configuration_test.go:141 @ 06/30/26 15:28:58.423 (0s)&#xA;</system-err>
+          </testcase>
+          <testcase name="[It] ValidateNamespaces when namespaces are provided via -n should filter out empty-string entries caused by trailing or doubled commas" classname="Configuration Suite" status="passed" time="0.000404125">
+              <system-err>&gt; Enter [It] should filter out empty-string entries caused by trailing or doubled commas - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/configuration/configuration_test.go:151 @ 06/30/26 15:28:58.423&#xA;&lt; Exit [It] should filter out empty-string entries caused by trailing or doubled commas - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/configuration/configuration_test.go:151 @ 06/30/26 15:28:58.423 (0s)&#xA;</system-err>
+          </testcase>
+          <testcase name="[It] ValidateNamespaces when namespaces are provided via -n should error when all provided namespace values are empty strings" classname="Configuration Suite" status="passed" time="0.000445">
+              <system-err>&gt; Enter [It] should error when all provided namespace values are empty strings - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/configuration/configuration_test.go:159 @ 06/30/26 15:28:58.423&#xA;&lt; Exit [It] should error when all provided namespace values are empty strings - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/configuration/configuration_test.go:159 @ 06/30/26 15:28:58.424 (0s)&#xA;</system-err>
+          </testcase>
+          <testcase name="[It] ValidateNamespaces when all-namespaces (-A) is set should list and capture every namespace in the cluster" classname="Configuration Suite" status="passed" time="0.000541167">
+              <system-err>&gt; Enter [It] should list and capture every namespace in the cluster - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/configuration/configuration_test.go:169 @ 06/30/26 15:28:58.424&#xA;&lt; Exit [It] should list and capture every namespace in the cluster - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/configuration/configuration_test.go:169 @ 06/30/26 15:28:58.424 (1ms)&#xA;</system-err>
+          </testcase>
+          <testcase name="[It] ValidateNamespaces when all-namespaces (-A) is set should ignore namespaces passed via -n and use the full cluster list" classname="Configuration Suite" status="passed" time="0.000974084">
+              <system-err>&gt; Enter [It] should ignore namespaces passed via -n and use the full cluster list - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/configuration/configuration_test.go:177 @ 06/30/26 15:28:58.424&#xA;&lt; Exit [It] should ignore namespaces passed via -n and use the full cluster list - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/configuration/configuration_test.go:177 @ 06/30/26 15:28:58.425 (1ms)&#xA;</system-err>
+          </testcase>
+          <testcase name="[It] ValidateNamespaces when all-namespaces (-A) is set should return an error when the namespace list is forbidden" classname="Configuration Suite" status="passed" time="0.000420667">
+              <system-err>&gt; Enter [It] should return an error when the namespace list is forbidden - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/configuration/configuration_test.go:185 @ 06/30/26 15:28:58.425&#xA;&lt; Exit [It] should return an error when the namespace list is forbidden - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/configuration/configuration_test.go:185 @ 06/30/26 15:28:58.426 (0s)&#xA;</system-err>
+          </testcase>
+          <testcase name="[AfterSuite]" classname="Configuration Suite" status="passed" time="1.091492875">
+              <system-err>&gt; Enter [AfterSuite] TOP-LEVEL - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/configuration/configuration_suite_test.go:69 @ 06/30/26 15:28:58.426&#xA;STEP: Tearing down the test environment - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/configuration/configuration_suite_test.go:71 @ 06/30/26 15:28:58.426&#xA;&lt; Exit [AfterSuite] TOP-LEVEL - /Users/strivedi/Code/aerospike-kubernetes-operator-ctl/pkg/configuration/configuration_suite_test.go:69 @ 06/30/26 15:28:59.517 (1.091s)&#xA;</system-err>
+          </testcase>
+      </testsuite>
+  </testsuites>
