@@ -480,6 +480,7 @@ var _ = Describe("collectinfo under restricted RBAC", Ordered, func() {
 		})).To(Succeed())
 
 		By("Creating the ServiceAccounts")
+
 		for _, sa := range []string{restrictedSA, noNsPermSA, missingReadsSA} {
 			Expect(k8sClient.Create(testCtx, &corev1.ServiceAccount{
 				ObjectMeta: metav1.ObjectMeta{Name: sa, Namespace: rbacNS},
@@ -498,6 +499,7 @@ var _ = Describe("collectinfo under restricted RBAC", Ordered, func() {
 		bindClusterRoleClusterWide(nsGetterCR, missingReadsSA, "missing-reads-ns-getter")
 
 		By("Building impersonating clients for each identity")
+
 		restrictedClient, restrictedClientSet = impersonatingClients(rbacNS, restrictedSA)
 		noNsPermClient, noNsPermClientSet = impersonatingClients(rbacNS, noNsPermSA)
 		missingReadsClient, missingReadsCS = impersonatingClients(rbacNS, missingReadsSA)
