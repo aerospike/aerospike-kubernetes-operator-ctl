@@ -109,7 +109,16 @@ func (p *Parameters) ValidateNamespaces(ctx context.Context, namespaces []string
 	}
 
 	userNsSet := sets.Set[string]{}
-	userNsSet.Insert(namespaces...)
+
+	for _, ns := range namespaces {
+		if ns != "" {
+			userNsSet.Insert(ns)
+		}
+	}
+
+	if userNsSet.Len() == 0 && len(namespaces) > 0 {
+		return fmt.Errorf("all provided namespace values are empty")
+	}
 
 	// Only list all namespaces in the cluster when the --all-namespaces/-A flag is set.
 	// This avoids requiring cluster-wide namespace LIST permission when the user has

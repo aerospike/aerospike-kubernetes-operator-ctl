@@ -147,6 +147,22 @@ var _ = Describe("ValidateNamespaces", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(params.Namespaces.UnsortedList()).To(ConsistOf("foo", "bar"))
 		})
+
+		It("should filter out empty-string entries caused by trailing or doubled commas", func() {
+			params := newParams(seededClient("foo"), false)
+
+			err := params.ValidateNamespaces(ctx, []string{"foo", "", ""})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(params.Namespaces.UnsortedList()).To(ConsistOf("foo"))
+		})
+
+		It("should error when all provided namespace values are empty strings", func() {
+			params := newParams(seededClient(), false)
+
+			err := params.ValidateNamespaces(ctx, []string{"", ""})
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("all provided namespace values are empty"))
+		})
 	})
 
 	Context("when all-namespaces (-A) is set", func() {
