@@ -598,6 +598,7 @@ func expectNotCollected(paths []string, ns string, pathElems ...string) {
 // seedNamespacedObjects) was collected under the given namespace's output directory.
 func expectAllCollected(paths []string, ns string, relPaths []string) {
 	GinkgoHelper()
+
 	for _, rel := range relPaths {
 		expectCollected(paths, ns, rel)
 	}
