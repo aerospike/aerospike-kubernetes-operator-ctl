@@ -339,45 +339,16 @@ var _ = Describe("collectInfo", func() {
 })
 
 func validateAndDeleteTar(srcFile string, filesList map[string]bool) error {
-	f, err := os.Open(srcFile)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	gzf, err := gzip.NewReader(f)
+	paths, err := tarFilePaths(srcFile)
 	if err != nil {
 		return err
 	}
 
-	tarReader := tar.NewReader(gzf)
-
-	for {
-		header, err := tarReader.Next()
-		if err == io.EOF {
-			break
-		}
-
-		if err != nil {
-			return err
-		}
-
-		name := header.Name
-
-		switch header.Typeflag {
-		case tar.TypeDir:
-			continue
-		case tar.TypeReg:
-			if _, ok := filesList[name]; ok {
-				filesList[name] = true
-			} else {
-				return fmt.Errorf("found unexpected file in tar %s", name)
-			}
-		default:
-			return fmt.Errorf("unable to figure out type : %c in file %s",
-				header.Typeflag,
-				name,
-			)
+	for _, name := range paths {
+		if _, ok := filesList[name]; ok {
+			filesList[name] = true
+		} else {
+			return fmt.Errorf("found unexpected file in tar %s", name)
 		}
 	}
 
@@ -430,14 +401,18 @@ var _ = Describe("collectinfo under restricted RBAC", Ordered, func() {
 		noNsPermClientSet   *kubernetes.Clientset
 		missingReadsClient  client.Client
 		missingReadsCS      *kubernetes.Clientset
+		objectPaths         []string
 	)
 
 	BeforeAll(func() {
 		By("Creating the target namespaces and seeding namespace-scoped objects")
 		Expect(testutils.CreateNamespace(testCtx, k8sClient, rbacNS)).To(Succeed())
 		Expect(testutils.CreateNamespace(testCtx, k8sClient, rbacNS2)).To(Succeed())
-		seedNamespacedObjects(rbacNS)
-		seedNamespacedObjects(rbacNS2)
+
+		// Create three namespaced objects : configmap, service and pod and then
+		// return the relative path at which collectinfo would dump them.
+		objectPaths = getCreatedObjectsPaths(rbacNS)
+		getCreatedObjectsPaths(rbacNS2)
 
 		By("Creating a ClusterRole that can read all namespace-scoped resources collectinfo captures")
 		Expect(k8sClient.Create(testCtx, &rbacv1.ClusterRole{
@@ -500,6 +475,9 @@ var _ = Describe("collectinfo under restricted RBAC", Ordered, func() {
 
 		By("Building impersonating clients for each identity")
 
+		// restrictedClient: namespaced reads of resources in rbacNS + rbacNS2, and can GET (but not LIST) namespaces.
+		// noNsPermClient: namespaced reads of resources in rbacNS only; no namespace get/list permissions at all.
+		// missingReadsClient: can GET namespaces cluster-wide, but has no namespaced resource-read permissions.
 		restrictedClient, restrictedClientSet = impersonatingClients(rbacNS, restrictedSA)
 		noNsPermClient, noNsPermClientSet = impersonatingClients(rbacNS, noNsPermSA)
 		missingReadsClient, missingReadsCS = impersonatingClients(rbacNS, missingReadsSA)
@@ -518,9 +496,7 @@ var _ = Describe("collectinfo under restricted RBAC", Ordered, func() {
 
 		paths := runCollectInfo(params)
 
-		expectCollected(paths, rbacNS, "configmaps", "rbac-cm.yaml")
-		expectCollected(paths, rbacNS, "services", "rbac-svc.yaml")
-		expectCollected(paths, rbacNS, "pods", "rbac-pod", "rbac-pod.yaml")
+		expectAllCollected(paths, rbacNS, objectPaths)
 		By("Not collecting any cluster-scoped resources when --cluster-scope=false")
 		Expect(paths).NotTo(ContainElement(ContainSubstring(collectinfo.ClusterScopedDir)))
 	})
@@ -532,8 +508,8 @@ var _ = Describe("collectinfo under restricted RBAC", Ordered, func() {
 
 		paths := runCollectInfo(params)
 
-		expectCollected(paths, rbacNS, "configmaps")
-		expectCollected(paths, rbacNS2, "configmaps")
+		expectAllCollected(paths, rbacNS, objectPaths)
+		expectAllCollected(paths, rbacNS2, objectPaths)
 	})
 
 	It("works for a pure namespace-scoped SA that cannot even GET a namespace", func() {
@@ -550,7 +526,7 @@ var _ = Describe("collectinfo under restricted RBAC", Ordered, func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		paths := runCollectInfo(params)
-		expectCollected(paths, rbacNS, "configmaps")
+		expectAllCollected(paths, rbacNS, objectPaths)
 	})
 
 	// ---------- Dark paths ----------
@@ -582,7 +558,7 @@ var _ = Describe("collectinfo under restricted RBAC", Ordered, func() {
 		Expect(params.Namespaces.UnsortedList()).To(ConsistOf(rbacNS))
 
 		paths := runCollectInfo(params)
-		expectCollected(paths, rbacNS, "configmaps")
+		expectAllCollected(paths, rbacNS, objectPaths)
 		expectNotCollected(paths, "does-not-exist")
 	})
 
@@ -616,6 +592,15 @@ func expectNotCollected(paths []string, ns string, pathElems ...string) {
 	GinkgoHelper()
 	Expect(paths).NotTo(ContainElement(ContainSubstring(
 		filepath.Join(append([]string{collectinfo.NamespaceScopedDir, ns}, pathElems...)...))))
+}
+
+// expectAllCollected asserts that every relative path in relPaths (as returned by
+// seedNamespacedObjects) was collected under the given namespace's output directory.
+func expectAllCollected(paths []string, ns string, relPaths []string) {
+	GinkgoHelper()
+	for _, rel := range relPaths {
+		expectCollected(paths, ns, rel)
+	}
 }
 
 // runCollectInfo runs CollectInfo into a fresh temp dir and returns the list of
@@ -670,9 +655,10 @@ func tarFilePaths(tarPath string) ([]string, error) {
 	return paths, nil
 }
 
-// seedNamespacedObjects creates a small set of namespace-scoped objects so that
-// collection has something to capture in the given namespace.
-func seedNamespacedObjects(ns string) {
+// getCreatedObjectsPaths creates a fixed set of namespaced objects in ns and returns
+// the paths, relative to that namespace's output directory, that collectinfo is
+// expected to produce for them.
+func getCreatedObjectsPaths(ns string) []string {
 	Expect(k8sClient.Create(testCtx, &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{Name: "rbac-cm", Namespace: ns},
 		Data:       map[string]string{},
@@ -689,6 +675,12 @@ func seedNamespacedObjects(ns string) {
 			Containers: []corev1.Container{{Name: "c", Image: "nginx"}},
 		},
 	})).To(Succeed())
+
+	return []string{
+		filepath.Join(collectinfo.KindDirNames[internal.ConfigMapKind], "rbac-cm"+collectinfo.FileSuffix),
+		filepath.Join(collectinfo.KindDirNames[internal.ServiceKind], "rbac-svc"+collectinfo.FileSuffix),
+		filepath.Join(collectinfo.KindDirNames[internal.PodKind], "rbac-pod", "rbac-pod"+collectinfo.FileSuffix),
+	}
 }
 
 // bindClusterRoleInNamespace grants a ClusterRole's permissions to a SA, scoped to

@@ -115,19 +115,7 @@ func (p *Parameters) ValidateNamespaces(ctx context.Context, namespaces []string
 		return p.resolveAllNamespaces(ctx)
 	}
 
-	nsSet := sets.Set[string]{}
-
-	for _, ns := range namespaces {
-		if ns != "" {
-			nsSet.Insert(ns)
-		}
-	}
-
-	if nsSet.Len() == 0 {
-		return fmt.Errorf("all provided namespace values are empty")
-	}
-
-	return p.resolveUserNamespaces(ctx, nsSet)
+	return p.resolveUserNamespaces(ctx, namespaces)
 }
 
 // resolveAllNamespaces resolves the namespaces if --all-namespaces/-A flag is used.
@@ -151,7 +139,19 @@ func (p *Parameters) resolveAllNamespaces(ctx context.Context) error {
 }
 
 // resolveUserNamespaces resolves the namespaces passed by the user in the -n flag.
-func (p *Parameters) resolveUserNamespaces(ctx context.Context, nsSet sets.Set[string]) error {
+func (p *Parameters) resolveUserNamespaces(ctx context.Context, namespaces []string) error {
+	nsSet := sets.Set[string]{}
+
+	for _, ns := range namespaces {
+		if ns != "" {
+			nsSet.Insert(ns)
+		}
+	}
+
+	if nsSet.Len() == 0 {
+		return fmt.Errorf("all provided namespace values are empty")
+	}
+
 	nonExistentNs := sets.Set[string]{}
 
 	for ns := range nsSet {
