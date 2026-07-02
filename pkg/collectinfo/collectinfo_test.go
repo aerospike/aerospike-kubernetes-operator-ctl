@@ -518,10 +518,9 @@ var _ = Describe("collectinfo under restricted RBAC", Ordered, func() {
 
 		paths := runCollectInfo(params)
 
-		Expect(paths).To(ContainElement(ContainSubstring(
-			filepath.Join(collectinfo.NamespaceScopedDir, rbacNS, "configmaps", "rbac-cm.yaml"))))
-		Expect(paths).To(ContainElement(ContainSubstring(
-			filepath.Join(collectinfo.NamespaceScopedDir, rbacNS, "services", "rbac-svc.yaml"))))
+		expectCollected(paths, rbacNS, "configmaps", "rbac-cm.yaml")
+		expectCollected(paths, rbacNS, "services", "rbac-svc.yaml")
+		expectCollected(paths, rbacNS, "pods", "rbac-pod", "rbac-pod.yaml")
 		By("Not collecting any cluster-scoped resources when --cluster-scope=false")
 		Expect(paths).NotTo(ContainElement(ContainSubstring(collectinfo.ClusterScopedDir)))
 	})
@@ -533,10 +532,8 @@ var _ = Describe("collectinfo under restricted RBAC", Ordered, func() {
 
 		paths := runCollectInfo(params)
 
-		Expect(paths).To(ContainElement(ContainSubstring(
-			filepath.Join(collectinfo.NamespaceScopedDir, rbacNS, "configmaps"))))
-		Expect(paths).To(ContainElement(ContainSubstring(
-			filepath.Join(collectinfo.NamespaceScopedDir, rbacNS2, "configmaps"))))
+		expectCollected(paths, rbacNS, "configmaps")
+		expectCollected(paths, rbacNS2, "configmaps")
 	})
 
 	It("works for a pure namespace-scoped SA that cannot even GET a namespace", func() {
@@ -553,8 +550,7 @@ var _ = Describe("collectinfo under restricted RBAC", Ordered, func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		paths := runCollectInfo(params)
-		Expect(paths).To(ContainElement(ContainSubstring(
-			filepath.Join(collectinfo.NamespaceScopedDir, rbacNS, "configmaps"))))
+		expectCollected(paths, rbacNS, "configmaps")
 	})
 
 	// ---------- Dark paths ----------
@@ -572,18 +568,11 @@ var _ = Describe("collectinfo under restricted RBAC", Ordered, func() {
 		Expect(apierrors.IsForbidden(err)).To(BeTrue())
 	})
 
-	It("fails at parameter creation when -A is used (still needs list-namespaces)", func() {
+	It("fails during namespace validation when -A is used (still needs list-namespaces)", func() {
 		_, err := testutils.NewTestParams(
 			testCtx, restrictedClient, restrictedClientSet, nil, true, false)
 		Expect(err).To(HaveOccurred())
 		Expect(apierrors.IsForbidden(err)).To(BeTrue())
-	})
-
-	It("fails when all -n namespaces are missing", func() {
-		_, err := testutils.NewTestParams(
-			testCtx, restrictedClient, restrictedClientSet, []string{"missing-one", "missing-two"}, false, false)
-		Expect(err).To(HaveOccurred())
-		Expect(err.Error()).To(ContainSubstring("all given namespaces are not present"))
 	})
 
 	It("drops a missing namespace and collects the existing one", func() {
@@ -593,10 +582,8 @@ var _ = Describe("collectinfo under restricted RBAC", Ordered, func() {
 		Expect(params.Namespaces.UnsortedList()).To(ConsistOf(rbacNS))
 
 		paths := runCollectInfo(params)
-		Expect(paths).To(ContainElement(ContainSubstring(
-			filepath.Join(collectinfo.NamespaceScopedDir, rbacNS, "configmaps"))))
-		Expect(paths).NotTo(ContainElement(ContainSubstring(
-			filepath.Join(collectinfo.NamespaceScopedDir, "does-not-exist"))))
+		expectCollected(paths, rbacNS, "configmaps")
+		expectNotCollected(paths, "does-not-exist")
 	})
 
 	It("fails collection when the SA cannot list namespaced resources", func() {
@@ -614,6 +601,22 @@ var _ = Describe("collectinfo under restricted RBAC", Ordered, func() {
 		Expect(apierrors.IsForbidden(err)).To(BeTrue())
 	})
 })
+
+// expectCollected asserts that some path under the given namespace's collected
+// output directory, ending in the given path elements, is present in paths.
+func expectCollected(paths []string, ns string, pathElems ...string) {
+	GinkgoHelper()
+	Expect(paths).To(ContainElement(ContainSubstring(
+		filepath.Join(append([]string{collectinfo.NamespaceScopedDir, ns}, pathElems...)...))))
+}
+
+// expectNotCollected asserts that no path under the given namespace's collected
+// output directory, ending in the given path elements, is present in paths.
+func expectNotCollected(paths []string, ns string, pathElems ...string) {
+	GinkgoHelper()
+	Expect(paths).NotTo(ContainElement(ContainSubstring(
+		filepath.Join(append([]string{collectinfo.NamespaceScopedDir, ns}, pathElems...)...))))
+}
 
 // runCollectInfo runs CollectInfo into a fresh temp dir and returns the list of
 // regular-file paths inside the produced tar archive.

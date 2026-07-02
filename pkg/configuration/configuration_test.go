@@ -35,6 +35,25 @@ import (
 	"github.com/aerospike/aerospike-kubernetes-operator-ctl/pkg/configuration"
 )
 
+const (
+	nsFoo    = "foo"
+	nsBar    = "bar"
+	nsSecret = "secret"
+	nsNope   = "nope"
+	ns1      = "ns1"
+	ns2      = "ns2"
+	ns3      = "ns3"
+)
+
+// forbiddenNamespaceErr builds the Forbidden error a real API server would
+// return for the given verb ("get" or "list") against the given namespace
+// name. An empty name is used for cluster-scoped LIST forbidden errors.
+func forbiddenNamespaceErr(verb, name string) error {
+	return apierrors.NewForbidden(
+		schema.GroupResource{Resource: "namespaces"}, name,
+		fmt.Errorf("cannot %s resource \"namespaces\" at the cluster scope", verb))
+}
+
 // testScheme returns a scheme that knows about core types (incl. Namespace).
 func testScheme() *runtime.Scheme {
 	scheme := runtime.NewScheme()
@@ -58,23 +77,17 @@ func seededClient(seededNamespaces ...string) client.Client {
 		Build()
 }
 
-// denyNamespaceAccessClient builds a fake client that forbids both GET and LIST
+// namespaceGetAndListForbiddenClient builds a fake client that forbids both GET and LIST
 // of namespaces, mirroring a ServiceAccount that has no cluster-wide namespace
 // permissions at all.
-func denyNamespaceAccessClient() client.Client {
-	forbidden := func(verb string) error {
-		return apierrors.NewForbidden(
-			schema.GroupResource{Resource: "namespaces"}, "",
-			fmt.Errorf("cannot %s resource \"namespaces\" at the cluster scope", verb))
-	}
-
+func namespaceGetAndListForbiddenClient() client.Client {
 	return fake.NewClientBuilder().
 		WithScheme(testScheme()).
 		WithInterceptorFuncs(interceptor.Funcs{
 			List: func(ctx context.Context, c client.WithWatch, list client.ObjectList,
 				opts ...client.ListOption) error {
 				if _, ok := list.(*corev1.NamespaceList); ok {
-					return forbidden("list")
+					return forbiddenNamespaceErr("list", "")
 				}
 
 				return c.List(ctx, list, opts...)
@@ -82,7 +95,7 @@ func denyNamespaceAccessClient() client.Client {
 			Get: func(ctx context.Context, c client.WithWatch, key client.ObjectKey,
 				obj client.Object, opts ...client.GetOption) error {
 				if _, ok := obj.(*corev1.Namespace); ok {
-					return forbidden("get")
+					return forbiddenNamespaceErr("get", "")
 				}
 
 				return c.Get(ctx, key, obj, opts...)
@@ -91,10 +104,10 @@ func denyNamespaceAccessClient() client.Client {
 		Build()
 }
 
-// getOnlyNamespaceClient mirrors the envtest "GET namespaces but not LIST"
+// namespaceListForbiddenClient mirrors the envtest "GET namespaces but not LIST"
 // identity at unit-test speed: GET of a seeded namespace succeeds, GET of an
 // unseeded one returns NotFound, and LIST of namespaces is forbidden.
-func getOnlyNamespaceClient(seededNamespaces ...string) client.Client {
+func namespaceListForbiddenClient(seededNamespaces ...string) client.Client {
 	objs := make([]client.Object, 0, len(seededNamespaces))
 	for _, name := range seededNamespaces {
 		objs = append(objs, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: name}})
@@ -107,9 +120,7 @@ func getOnlyNamespaceClient(seededNamespaces ...string) client.Client {
 			List: func(ctx context.Context, c client.WithWatch, list client.ObjectList,
 				opts ...client.ListOption) error {
 				if _, ok := list.(*corev1.NamespaceList); ok {
-					return apierrors.NewForbidden(
-						schema.GroupResource{Resource: "namespaces"}, "",
-						fmt.Errorf("cannot list resource \"namespaces\" at the cluster scope"))
+					return forbiddenNamespaceErr("list", "")
 				}
 
 				return c.List(ctx, list, opts...)
@@ -163,9 +174,7 @@ func mixedNamespaceAccessClient(seeded []string, forbiddenNamespaces ...string) 
 			List: func(ctx context.Context, c client.WithWatch, list client.ObjectList,
 				opts ...client.ListOption) error {
 				if _, ok := list.(*corev1.NamespaceList); ok {
-					return apierrors.NewForbidden(
-						schema.GroupResource{Resource: "namespaces"}, "",
-						fmt.Errorf("cannot list resource \"namespaces\" at the cluster scope"))
+					return forbiddenNamespaceErr("list", "")
 				}
 
 				return c.List(ctx, list, opts...)
@@ -173,9 +182,7 @@ func mixedNamespaceAccessClient(seeded []string, forbiddenNamespaces ...string) 
 			Get: func(ctx context.Context, c client.WithWatch, key client.ObjectKey,
 				obj client.Object, opts ...client.GetOption) error {
 				if _, ok := obj.(*corev1.Namespace); ok && forbidden.Has(key.Name) {
-					return apierrors.NewForbidden(
-						schema.GroupResource{Resource: "namespaces"}, key.Name,
-						fmt.Errorf("cannot get resource \"namespaces\" at the cluster scope"))
+					return forbiddenNamespaceErr("get", key.Name)
 				}
 
 				return c.Get(ctx, key, obj, opts...)
@@ -208,26 +215,26 @@ var _ = Describe("ValidateNamespaces", func() {
 
 	Context("when namespaces are provided via -n", func() {
 		It("should keep all provided namespaces when they exist in the cluster", func() {
-			params := newParams(seededClient("foo", "bar"), false)
+			params := newParams(seededClient(nsFoo, nsBar), false)
 
-			err := params.ValidateNamespaces(ctx, []string{"foo", "bar"})
+			err := params.ValidateNamespaces(ctx, []string{nsFoo, nsBar})
 			Expect(err).NotTo(HaveOccurred())
-			Expect(params.Namespaces.UnsortedList()).To(ConsistOf("foo", "bar"))
+			Expect(params.Namespaces.UnsortedList()).To(ConsistOf(nsFoo, nsBar))
 		})
 
 		It("should drop namespaces that do not exist and keep the rest", func() {
-			// Only "foo" exists; "bar" should be skipped with a warning.
-			params := newParams(seededClient("foo"), false)
+			// Only nsFoo exists; nsBar should be skipped with a warning.
+			params := newParams(seededClient(nsFoo), false)
 
-			err := params.ValidateNamespaces(ctx, []string{"foo", "bar"})
+			err := params.ValidateNamespaces(ctx, []string{nsFoo, nsBar})
 			Expect(err).NotTo(HaveOccurred())
-			Expect(params.Namespaces.UnsortedList()).To(ConsistOf("foo"))
+			Expect(params.Namespaces.UnsortedList()).To(ConsistOf(nsFoo))
 		})
 
 		It("should error when none of the provided namespaces exist", func() {
 			params := newParams(seededClient(), false)
 
-			err := params.ValidateNamespaces(ctx, []string{"foo", "bar"})
+			err := params.ValidateNamespaces(ctx, []string{nsFoo, nsBar})
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("all given namespaces are not present"))
 		})
@@ -235,19 +242,19 @@ var _ = Describe("ValidateNamespaces", func() {
 		It("should succeed without requiring any cluster-wide namespace permission", func() {
 			// The SA can neither GET nor LIST namespaces; existence validation is
 			// skipped and the provided namespaces are used as-is.
-			params := newParams(denyNamespaceAccessClient(), false)
+			params := newParams(namespaceGetAndListForbiddenClient(), false)
 
-			err := params.ValidateNamespaces(ctx, []string{"foo", "bar"})
+			err := params.ValidateNamespaces(ctx, []string{nsFoo, nsBar})
 			Expect(err).NotTo(HaveOccurred())
-			Expect(params.Namespaces.UnsortedList()).To(ConsistOf("foo", "bar"))
+			Expect(params.Namespaces.UnsortedList()).To(ConsistOf(nsFoo, nsBar))
 		})
 
 		It("should filter out empty-string entries caused by trailing or doubled commas", func() {
-			params := newParams(seededClient("foo"), false)
+			params := newParams(seededClient(nsFoo), false)
 
-			err := params.ValidateNamespaces(ctx, []string{"foo", "", ""})
+			err := params.ValidateNamespaces(ctx, []string{nsFoo, "", ""})
 			Expect(err).NotTo(HaveOccurred())
-			Expect(params.Namespaces.UnsortedList()).To(ConsistOf("foo"))
+			Expect(params.Namespaces.UnsortedList()).To(ConsistOf(nsFoo))
 		})
 
 		It("should error when all provided namespace values are empty strings", func() {
@@ -261,28 +268,28 @@ var _ = Describe("ValidateNamespaces", func() {
 		It("should keep existing and drop missing namespaces when the SA can GET but not LIST", func() {
 			// Mirrors the envtest GET-only identity: existence is verified per
 			// namespace via GET, so the missing one is dropped without needing LIST.
-			params := newParams(getOnlyNamespaceClient("foo"), false)
+			params := newParams(namespaceListForbiddenClient(nsFoo), false)
 
-			err := params.ValidateNamespaces(ctx, []string{"foo", "bar"})
+			err := params.ValidateNamespaces(ctx, []string{nsFoo, nsBar})
 			Expect(err).NotTo(HaveOccurred())
-			Expect(params.Namespaces.UnsortedList()).To(ConsistOf("foo"))
+			Expect(params.Namespaces.UnsortedList()).To(ConsistOf(nsFoo))
 		})
 
 		It("should keep both an existing and a forbidden namespace and drop the missing one", func() {
-			// "foo" exists (kept), "nope" is NotFound (dropped), "secret" is
+			// nsFoo exists (kept), nsNope is NotFound (dropped), nsSecret is
 			// Forbidden (kept as-is because existence can't be verified).
-			params := newParams(mixedNamespaceAccessClient([]string{"foo"}, "secret"), false)
+			params := newParams(mixedNamespaceAccessClient([]string{nsFoo}, nsSecret), false)
 
-			err := params.ValidateNamespaces(ctx, []string{"foo", "nope", "secret"})
+			err := params.ValidateNamespaces(ctx, []string{nsFoo, nsNope, nsSecret})
 			Expect(err).NotTo(HaveOccurred())
-			Expect(params.Namespaces.UnsortedList()).To(ConsistOf("foo", "secret"))
+			Expect(params.Namespaces.UnsortedList()).To(ConsistOf(nsFoo, nsSecret))
 		})
 
 		It("should propagate an unexpected (non-NotFound, non-Forbidden) GET error", func() {
 			// Exercises the default branch of the GET switch in resolveUserNamespaces.
 			params := newParams(apiErrorClient(apierrors.NewInternalError(fmt.Errorf("boom"))), false)
 
-			err := params.ValidateNamespaces(ctx, []string{"foo"})
+			err := params.ValidateNamespaces(ctx, []string{nsFoo})
 			Expect(err).To(HaveOccurred())
 			Expect(apierrors.IsInternalError(err)).To(BeTrue())
 		})
@@ -290,24 +297,24 @@ var _ = Describe("ValidateNamespaces", func() {
 
 	Context("when all-namespaces (-A) is set", func() {
 		It("should list and capture every namespace in the cluster", func() {
-			params := newParams(seededClient("ns1", "ns2", "ns3"), true)
+			params := newParams(seededClient(ns1, ns2, ns3), true)
 
 			err := params.ValidateNamespaces(ctx, nil)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(params.Namespaces.UnsortedList()).To(ConsistOf("ns1", "ns2", "ns3"))
+			Expect(params.Namespaces.UnsortedList()).To(ConsistOf(ns1, ns2, ns3))
 		})
 
 		It("should ignore namespaces passed via -n and use the full cluster list", func() {
-			params := newParams(seededClient("ns1", "ns2"), true)
+			params := newParams(seededClient(ns1, ns2), true)
 
 			err := params.ValidateNamespaces(ctx, []string{"only-this-one"})
 			Expect(err).NotTo(HaveOccurred())
-			Expect(params.Namespaces.UnsortedList()).To(ConsistOf("ns1", "ns2"))
+			Expect(params.Namespaces.UnsortedList()).To(ConsistOf(ns1, ns2))
 		})
 
 		It("should return an error when the namespace list is forbidden", func() {
 			// -A still depends on cluster-wide namespace list permission.
-			params := newParams(denyNamespaceAccessClient(), true)
+			params := newParams(namespaceGetAndListForbiddenClient(), true)
 
 			err := params.ValidateNamespaces(ctx, nil)
 			Expect(err).To(HaveOccurred())
@@ -316,7 +323,7 @@ var _ = Describe("ValidateNamespaces", func() {
 
 		It("should be forbidden when the SA can GET namespaces but not LIST them", func() {
 			// GET permission on namespaces does not imply LIST, so -A is rejected.
-			params := newParams(getOnlyNamespaceClient("ns1", "ns2"), true)
+			params := newParams(namespaceListForbiddenClient(ns1, ns2), true)
 
 			err := params.ValidateNamespaces(ctx, nil)
 			Expect(err).To(HaveOccurred())
