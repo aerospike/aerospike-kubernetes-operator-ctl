@@ -1,6 +1,6 @@
 module github.com/aerospike/aerospike-kubernetes-operator-ctl
 
-go 1.25.10
+go 1.26.8
 
 require (
 	github.com/onsi/ginkgo/v2 v2.28.1
