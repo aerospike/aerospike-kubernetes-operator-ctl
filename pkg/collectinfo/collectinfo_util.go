@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -509,12 +510,28 @@ func compress(src string, buf io.Writer) error {
 	// tar > gzip > buf
 	zr := gzip.NewWriter(buf)
 	tw := tar.NewWriter(zr)
-	// walk through every file in the folder
-	rootOutputPath := filepath.Join(src, RootOutputDir)
+	// Open the output directory as a root so every file read below is resolved
+	// inside it, even if a symlink appears mid-walk.
+	root, err := os.OpenRoot(filepath.Join(src, RootOutputDir))
+	if err != nil {
+		return err
+	}
 
-	err := filepath.Walk(rootOutputPath, func(file string, fi os.FileInfo, _ error) error {
+	defer root.Close()
+
+	// walk through every file in the folder
+	err = fs.WalkDir(root.FS(), ".", func(entryPath string, dirEntry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+
+		fi, fileErr := dirEntry.Info()
+		if fileErr != nil {
+			return fileErr
+		}
+
 		// generate tar header
-		header, fileErr := tar.FileInfoHeader(fi, file)
+		header, fileErr := tar.FileInfoHeader(fi, entryPath)
 		if fileErr != nil {
 			return fileErr
 		}
@@ -522,24 +539,26 @@ func compress(src string, buf io.Writer) error {
 		// must provide real name
 		// (see https://golang.org/src/archive/tar/common.go?#L626)
 
-		header.Name = strings.TrimPrefix(file, src)
+		header.Name = filepath.Join(RootOutputDir, entryPath)
 		// write header
-		if fileErr := tw.WriteHeader(header); fileErr != nil {
-			return fileErr
+		if headerErr := tw.WriteHeader(header); headerErr != nil {
+			return headerErr
 		}
 		// if not a dir, write file content
-		if !fi.IsDir() {
-			data, fileErr := os.Open(file)
-			if fileErr != nil {
-				return fileErr
-			}
-
-			if _, fileErr := io.Copy(tw, data); fileErr != nil {
-				return fileErr
-			}
+		if dirEntry.IsDir() {
+			return nil
 		}
 
-		return nil
+		data, fileErr := root.Open(entryPath)
+		if fileErr != nil {
+			return fileErr
+		}
+
+		defer data.Close()
+
+		_, fileErr = io.Copy(tw, data)
+
+		return fileErr
 	})
 	if err != nil {
 		return err
