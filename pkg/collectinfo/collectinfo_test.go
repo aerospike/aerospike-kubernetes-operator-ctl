@@ -199,11 +199,11 @@ var _ = Describe("collectInfo", func() {
 				ObjectMeta: metav1.ObjectMeta{Name: stsName, Namespace: namespace},
 				Spec: appsv1.StatefulSetSpec{
 					Selector: &metav1.LabelSelector{
-						MatchLabels: workloadLabels(),
+						MatchLabels: map[string]string{"app": "t1", "s2iBuilder": "t1-s2i-1x55", "version": "v1"},
 					},
 					Template: corev1.PodTemplateSpec{
 						ObjectMeta: metav1.ObjectMeta{
-							Labels: workloadLabels(),
+							Labels: map[string]string{"app": "t1", "s2iBuilder": "t1-s2i-1x55", "version": "v1"},
 						},
 						Spec: corev1.PodSpec{
 							Containers: []corev1.Container{
@@ -223,11 +223,11 @@ var _ = Describe("collectInfo", func() {
 				ObjectMeta: metav1.ObjectMeta{Name: deployName, Namespace: namespace},
 				Spec: appsv1.DeploymentSpec{
 					Selector: &metav1.LabelSelector{
-						MatchLabels: workloadLabels(),
+						MatchLabels: map[string]string{"app": "t1", "s2iBuilder": "t1-s2i-1x55", "version": "v1"},
 					},
 					Template: corev1.PodTemplateSpec{
 						ObjectMeta: metav1.ObjectMeta{
-							Labels: workloadLabels(),
+							Labels: map[string]string{"app": "t1", "s2iBuilder": "t1-s2i-1x55", "version": "v1"},
 						},
 						Spec: corev1.PodSpec{
 							Containers: []corev1.Container{
@@ -367,16 +367,6 @@ func validateAndDeleteTar(srcFile string, filesList map[string]bool) error {
 	return os.Remove(srcFile)
 }
 
-// workloadLabels returns the label set shared by the test StatefulSet and
-// Deployment, as both a selector and pod template labels.
-func workloadLabels() map[string]string {
-	return map[string]string{
-		"app":        "t1",
-		"s2iBuilder": "t1-s2i-1x55",
-		"version":    "v1",
-	}
-}
-
 func createUnstructuredObject(name, namespace string, gvk schema.GroupVersionKind) {
 	u := &unstructured.Unstructured{}
 	u.SetName(name)
@@ -401,8 +391,6 @@ const (
 	missingReadsSA = "akoctl-missing-reads" // get-namespace only (no namespaced reads)
 	nsReaderCR     = "cinfo-ns-reader"
 	nsGetterCR     = "cinfo-ns-getter"
-	verbGet        = "get"
-	verbList       = "list"
 )
 
 var _ = Describe("collectinfo under restricted RBAC", Ordered, func() {
@@ -433,23 +421,23 @@ var _ = Describe("collectinfo under restricted RBAC", Ordered, func() {
 				{
 					APIGroups: []string{""},
 					Resources: []string{"pods", "pods/log", "services", "configmaps", "persistentvolumeclaims"},
-					Verbs:     []string{verbGet, verbList},
+					Verbs:     []string{"get", "list"},
 				},
 				{
 					APIGroups: []string{"apps"},
 					Resources: []string{"statefulsets", "deployments"},
-					Verbs:     []string{verbGet, verbList},
+					Verbs:     []string{"get", "list"},
 				},
 				{
 					APIGroups: []string{"policy"},
 					Resources: []string{"poddisruptionbudgets"},
-					Verbs:     []string{verbGet, verbList},
+					Verbs:     []string{"get", "list"},
 				},
 				{
 					APIGroups: []string{internal.Group},
 					Resources: []string{"aerospikeclusters", "aerospikebackupservices",
 						"aerospikebackups", "aerospikerestores"},
-					Verbs: []string{verbGet, verbList},
+					Verbs: []string{"get", "list"},
 				},
 			},
 		})).To(Succeed())
@@ -461,7 +449,7 @@ var _ = Describe("collectinfo under restricted RBAC", Ordered, func() {
 				{
 					APIGroups: []string{""},
 					Resources: []string{"namespaces"},
-					Verbs:     []string{verbGet},
+					Verbs:     []string{"get"},
 				},
 			},
 		})).To(Succeed())
