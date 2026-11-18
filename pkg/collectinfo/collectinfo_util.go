@@ -512,7 +512,11 @@ func compress(src string, buf io.Writer) error {
 	// walk through every file in the folder
 	rootOutputPath := filepath.Join(src, RootOutputDir)
 
-	err := filepath.Walk(rootOutputPath, func(file string, fi os.FileInfo, _ error) error {
+	err := filepath.Walk(rootOutputPath, func(file string, fi os.FileInfo, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+
 		// generate tar header
 		header, fileErr := tar.FileInfoHeader(fi, file)
 		if fileErr != nil {
@@ -521,25 +525,32 @@ func compress(src string, buf io.Writer) error {
 
 		// must provide real name
 		// (see https://golang.org/src/archive/tar/common.go?#L626)
-
-		header.Name = strings.TrimPrefix(file, src)
-		// write header
-		if fileErr := tw.WriteHeader(header); fileErr != nil {
+		relPath, fileErr := filepath.Rel(rootOutputPath, file)
+		if fileErr != nil {
 			return fileErr
 		}
-		// if not a dir, write file content
-		if !fi.IsDir() {
-			data, fileErr := os.Open(file)
-			if fileErr != nil {
-				return fileErr
-			}
 
-			if _, fileErr := io.Copy(tw, data); fileErr != nil {
-				return fileErr
-			}
+		// tar entry names must be relative and slash-separated on every OS, including Windows
+		header.Name = filepath.ToSlash(filepath.Join(RootOutputDir, relPath))
+		// write header
+		if headerErr := tw.WriteHeader(header); headerErr != nil {
+			return headerErr
+		}
+		// if not a dir, write file content
+		if fi.IsDir() {
+			return nil
 		}
 
-		return nil
+		data, fileErr := os.Open(file) //nolint:gosec // only walks akoctl's own freshly written output dir
+		if fileErr != nil {
+			return fileErr
+		}
+
+		defer data.Close()
+
+		_, fileErr = io.Copy(tw, data)
+
+		return fileErr
 	})
 	if err != nil {
 		return err

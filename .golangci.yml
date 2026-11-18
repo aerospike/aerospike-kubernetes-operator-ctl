@@ -1,6 +1,6 @@
 version: "2"
 run:
-  go: "1.25"
+  go: "1.26"
   issues-exit-code: 1
 linters:
   default: none
@@ -64,6 +64,10 @@ linters:
       - common-false-positives
       - legacy
       - std-error-handling
+    rules:
+      - path: _test\.go
+        linters:
+          - goconst
     paths:
       - third_party$
       - builtin$

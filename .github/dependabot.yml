@@ -1,6 +1,17 @@
 version: 2
 updates:
-  - package-ecosystem: gomod
+  - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: daily
+    groups:
+      github-actions-all:
+        patterns:
+          - "*"     # all github-actions deps in one PR
+
+# Go mod dependencies are dependent on each other. Can't update one by one
+# Will be handled manually in one go
+#  - package-ecosystem: gomod
+#    directory: /
+#    schedule:
+#      interval: daily
