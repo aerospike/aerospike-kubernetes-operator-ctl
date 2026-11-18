@@ -23,7 +23,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -510,46 +509,39 @@ func compress(src string, buf io.Writer) error {
 	// tar > gzip > buf
 	zr := gzip.NewWriter(buf)
 	tw := tar.NewWriter(zr)
-	// Open the output directory as a root so every file read below is resolved
-	// inside it, even if a symlink appears mid-walk.
-	root, err := os.OpenRoot(filepath.Join(src, RootOutputDir))
-	if err != nil {
-		return err
-	}
-
-	defer root.Close()
-
 	// walk through every file in the folder
-	err = fs.WalkDir(root.FS(), ".", func(entryPath string, dirEntry fs.DirEntry, walkErr error) error {
+	rootOutputPath := filepath.Join(src, RootOutputDir)
+
+	err := filepath.Walk(rootOutputPath, func(file string, fi os.FileInfo, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
 
-		fi, fileErr := dirEntry.Info()
-		if fileErr != nil {
-			return fileErr
-		}
-
 		// generate tar header
-		header, fileErr := tar.FileInfoHeader(fi, entryPath)
+		header, fileErr := tar.FileInfoHeader(fi, file)
 		if fileErr != nil {
 			return fileErr
 		}
 
 		// must provide real name
 		// (see https://golang.org/src/archive/tar/common.go?#L626)
+		relPath, fileErr := filepath.Rel(rootOutputPath, file)
+		if fileErr != nil {
+			return fileErr
+		}
 
-		header.Name = filepath.Join(RootOutputDir, entryPath)
+		// tar entry names must be relative and slash-separated on every OS, including Windows
+		header.Name = filepath.ToSlash(filepath.Join(RootOutputDir, relPath))
 		// write header
 		if headerErr := tw.WriteHeader(header); headerErr != nil {
 			return headerErr
 		}
 		// if not a dir, write file content
-		if dirEntry.IsDir() {
+		if fi.IsDir() {
 			return nil
 		}
 
-		data, fileErr := root.Open(entryPath)
+		data, fileErr := os.Open(file) //nolint:gosec // only walks akoctl's own freshly written output dir
 		if fileErr != nil {
 			return fileErr
 		}
